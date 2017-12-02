@@ -1,0 +1,10 @@
+{$i imports.simba}
+{$i srl/osr.simba}
+
+(** @desc: Test function with a untyped parameter.
+ **)
+procedure test(constref x);
+begin
+  TPoint.Angle
+end;
+

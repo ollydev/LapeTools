@@ -1,0 +1,17 @@
+function FindDTM(DTM: Integer; var x, y: Integer; xs, ys, xe, ye: Integer): Boolean; begin end;
+function FindDTMs(DTM: Integer; var p: TPointArray; xs, ys, xe, ye: Integer): Boolean; begin end;
+function FindDTMRotatedAlternating(DTM: Integer; var x, y: Integer; xs, ys, xe, ye: Integer; sAngle, eAngle, aStep: Extended; var aFound: Extended): Boolean; begin end;
+function FindDTMRotatedSE(DTM: Integer; var x, y: Integer; xs, ys, xe, ye: Integer; sAngle, eAngle, aStep: Extended; var aFound: Extended): Boolean; begin end;
+function FindDTMsRotatedAlternating(DTM: Integer; var Points: TPointArray; xs, ys, xe, ye: Integer; sAngle, eAngle, aStep: Extended; var aFound: T2DExtendedArray): Boolean; begin end;
+function FindDTMsRotatedSE(DTM: Integer; var Points: TPointArray; xs, ys, xe, ye: Integer; sAngle, eAngle, aStep: Extended; var aFound: T2DExtendedArray): Boolean; begin end;
+procedure SetDTMName(DTM: integer; const name: string); begin end;
+function DTMFromString(const DTMString: String): Integer; begin end;
+procedure FreeDTM(DTM: Integer); begin end;
+function GetDTM(index: Integer): TMDTM; begin end;
+function AddSDTM(const d: TSDTM): Integer; begin end;
+function AddDTM(const d: TMDTM): Integer; begin end;
+function DTMExists(index : integer) : boolean; begin end;
+procedure PrintDTM(const aDTM: TMDTM); begin end;
+function MDTMToSDTM(Const DTM: TMDTM): TSDTM; begin end;
+function SDTMToMDTM(Const DTM: TSDTM): TMDTM; begin end;
+function CreateDTMPoint(x,y,c,t,asz: integer; bp: boolean): TMDTMPoint; begin end;

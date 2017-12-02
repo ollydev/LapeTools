@@ -1,0 +1,17 @@
+{$i Imports/Lape.simba}
+{$i Imports/Types.simba}
+{$i Imports/Bitmap.simba}
+{$i Imports/Color.simba}
+{$i Imports/Crypto.simba}
+{$i Imports/DTM.simba}
+{$i Imports/File.simba}
+{$i Imports/Input.simba}
+{$i Imports/LCL.simba}
+{$i Imports/Math.simba}
+{$i Imports/MML.simba}
+{$i Imports/OCR.simba}
+{$i Imports/Web.simba}
+{$i Imports/Settings.simba}
+{$i Imports/String.simba}
+{$i Imports/Target.simba}
+{$i Imports/TPA.Simba}

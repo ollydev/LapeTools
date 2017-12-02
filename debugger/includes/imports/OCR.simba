@@ -1,0 +1,17 @@
+function rs_GetUpText: String; begin end;
+function rs_GetUpTextAtEx(x, y: integer; shadow: boolean; fontname: string): string; begin end;
+function rs_GetUpTextAt(x, y: integer): string; begin end;
+function BitmapFromText(const text, font: String): integer; begin end;
+function MaskFromText(const text, font: String): TMask; begin end;
+procedure TPAFromTextWrap(const text, font: String; var w,h: integer; out TPA: TPointArray); begin end;
+function TPAFromText(const text, font: String; var w,h: integer): TPointArray; begin end;
+function GetTextATPA(const ATPA: T2DPointArray; const maxvspacing: integer; const font: string): string; begin end;
+function GetTextAt(const atX, atY, minvspacing, maxvspacing, hspacing, color, tol, len: integer; const font: string): string; begin end;
+function GetTextAtEx(const xs,ys,xe,ye, minvspacing, maxvspacing, hspacing, color, tol: integer; const font: string): string; begin end;
+procedure rs_SetUpTextFilter(filterdata: TOcrFilterDataArray); begin end;
+procedure rs_ResetUpTextFilter; begin end;
+function LoadSystemFont(const SysFont: TFont; const FontName: string): boolean; begin end;
+function LoadFont(const FontName: string; shadow: boolean): boolean; begin end;
+function FreeFont(const FontName: string): boolean; begin end;
+function IsFontLoaded(const FontName: string): boolean; begin end;
+procedure ocr_FilterUpTextByCharacteristics(bmp: TMufasaBitmap); begin end;

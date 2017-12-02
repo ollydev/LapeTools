@@ -1,0 +1,12 @@
+function haval(Data: string): string; begin end;
+function md4(Data: string): string; begin end;
+function md5(Data: string): string; begin end;
+function ripemd128(Data: string): string; begin end;
+function ripemd160(Data: string): string; begin end;
+function sha1(Data: string): string; begin end;
+function sha256(Data: string): string; begin end;
+function sha384(Data: string): string; begin end;
+function sha512(Data: string): string; begin end;
+function tiger(Data: string): string; begin end;
+procedure rc2_encrypt(const Key: string; const HashType: THashType; var Data: string); begin end;
+procedure rc2_decrypt(const Key: string; const HashType: THashType; var Data: string); begin end;

@@ -1,0 +1,8 @@
+function SetSettingValue(const KeyName,value: string): boolean; begin end;
+function KeyIsSetting(const KeyName: String): Boolean; begin end;
+function KeyIsDirectory(const KeyName: String): Boolean; begin end;
+function GetSettingValue(const KeyName: String): String; begin end;
+function GetSettingValueDef(const KeyName, defVal: String): String; begin end;
+function ListSettings(const KeyName: String; var KeyReturn: TStringArray): boolean; begin end;
+function DeleteSetting(const KeyName: String): Boolean; begin end;
+function DeleteSubSettings(const KeyName: String): Boolean; begin end;

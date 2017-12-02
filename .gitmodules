@@ -1,0 +1,6 @@
+[submodule "lape"]
+	path = lape
+	url = https://github.com/nielsAD/lape
+[submodule "debugger/includes/SRL"]
+	path = debugger/includes/SRL
+	url = https://github.com/SRL/SRL

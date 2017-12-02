@@ -1,0 +1,14 @@
+procedure MoveMouse(x, y: integer); begin end;
+procedure ScrollMouse(x,y: integer; Clicks: integer); begin end;
+procedure GetMousePos(var x, y: integer); begin end;
+function ConvIntClickType(Int: Integer): TClickType; begin end;
+procedure HoldMouse(x, y: integer; clickType: integer); begin end;
+procedure ReleaseMouse(x, y: integer; clickType: integer); begin end;
+procedure ClickMouse(x, y: integer; clickType: integer); begin end;
+function IsMouseButtonDown(button: integer): boolean; begin end;
+procedure KeyDown(key: Word); begin end;
+procedure KeyUp(key: Word); begin end;
+procedure SendKeys(const s: string; keywait, keymodwait: integer); begin end;
+procedure PressKey(key: Word); begin end;
+function isKeyDown(key: Word): boolean; begin end;
+function GetKeyCode(c: char): integer; begin end;

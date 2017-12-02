@@ -1,0 +1,76 @@
+object DebugForm: TDebugForm
+  Left = 235
+  Height = 679
+  Top = 181
+  Width = 767
+  Caption = 'Debugger'
+  ClientHeight = 679
+  ClientWidth = 767
+  OnCreate = DoCreate
+  Position = poScreenCenter
+  LCLVersion = '1.4.4.0'
+  object ToolBar: TToolBar
+    Left = 0
+    Height = 24
+    Top = 0
+    Width = 762
+    BorderSpacing.Right = 5
+    Caption = 'ToolBar'
+    EdgeBorders = []
+    EdgeInner = esNone
+    EdgeOuter = esNone
+    Font.Style = [fsBold]
+    List = True
+    ParentFont = False
+    ShowCaptions = True
+    TabOrder = 0
+    object btnParse: TToolButton
+      Left = 1
+      Top = 0
+      AutoSize = True
+      Caption = 'Parse'
+      OnClick = DoParse
+    end
+    object lblParseTime: TLabel
+      Left = 761
+      Height = 24
+      Top = 0
+      Width = 1
+      Align = alRight
+      Font.Style = [fsBold]
+      Layout = tlCenter
+      ParentColor = False
+      ParentFont = False
+    end
+  end
+  object PairSplitter: TPairSplitter
+    Left = 0
+    Height = 655
+    Top = 24
+    Width = 767
+    Align = alClient
+    Position = 200
+    object pnlTrees: TPairSplitterSide
+      Cursor = crArrow
+      Left = 0
+      Height = 655
+      Top = 0
+      Width = 200
+    end
+    object pnlEditor: TPairSplitterSide
+      Cursor = crArrow
+      Left = 205
+      Height = 655
+      Top = 0
+      Width = 562
+    end
+  end
+  object Highlighter: TSynFreePascalSyn
+    Enabled = False
+    CommentAttri.Foreground = clBlue
+    CompilerMode = pcmObjFPC
+    NestedComments = True
+    left = 696
+    top = 32
+  end
+end
