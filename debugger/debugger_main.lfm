@@ -68,8 +68,12 @@ object DebugForm: TDebugForm
   object Highlighter: TSynFreePascalSyn
     Enabled = False
     CommentAttri.Foreground = clBlue
+    NumberAttri.Foreground = clNavy
+    StringAttri.Foreground = clBlue
+    SymbolAttri.Foreground = clRed
     CompilerMode = pcmObjFPC
     NestedComments = True
+    StringKeywordMode = spsmNone
     left = 696
     top = 32
   end

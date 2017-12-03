@@ -1,10 +1,13 @@
 {$i imports.simba}
 {$i srl/osr.simba}
 
+
+type
+  TTest = array[0..1] of record x, y, z: Int32; end;
+
 (** @desc: Test function with a untyped parameter.
  **)
 procedure test(constref x);
 begin
   TPoint.Angle
 end;
-

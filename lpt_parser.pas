@@ -562,13 +562,16 @@ var
   function GetItems: TExpressionItems;
   var
     InParameters, InBrackets: Int32;
+    Tokenizer: TLapeTokenizerString;
   begin
     SetLength(Result, 1);
 
     InParameters := 0;
     InBrackets := 0;
 
-    with TLapeTokenizerString.Create(Expression) do
+    Tokenizer := TLapeTokenizerString.Create(Expression);
+
+    with Tokenizer do
     try
       while (Next() <> tk_NULL) do
       begin
@@ -597,9 +600,11 @@ var
               Result[High(Result)].Name := Result[High(Result)].Name + TokString;
         end;
       end;
-    finally
-      Free();
+    except
+      { nothing }
     end;
+
+    Tokenizer.Free();
 
     if (Result[High(Result)].Name = '') then
       SetLength(Result, Length(Result) - 1);

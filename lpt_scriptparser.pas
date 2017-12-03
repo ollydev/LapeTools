@@ -129,16 +129,14 @@ begin
 
             FMap.Add(Declaration.Text, Declaration);
 
-            Argument := Path;
-          end;
+            if (FParseIncludes) and (FIncludes.IndexOf(Path) = -1) then
+            begin
+              FIncludes.Add(Path);
 
-          if (FParseIncludes) and (FIncludes.IndexOf(Path) = -1) then
-          begin
-            FIncludes.Add(Path);
-
-            with FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))].Map.ExportToArrays() do
-              for i := 0 to High(Keys) do
-                FMap.Add(Keys[i], Items[i]);
+              with FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))].Map.ExportToArrays() do
+                for i := 0 to High(Keys) do
+                  FMap.Add(Keys[i], Items[i]);
+            end;
           end;
 
           Exit(True);

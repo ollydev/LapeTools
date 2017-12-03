@@ -4,15 +4,13 @@ type
   TLapeTools_AutoComplete_Item = class(TTreeNode)
   protected
     FAutoComplete: TLapeTools_AutoComplete;
-    FName: String;
 
     function DisplayLeft(Column: Boolean): Int32;
     function DisplayTop: Int32;
 
-    procedure TextOut(var X, Y: Int32; AText: String; AColor: Int32; AStyle: TFontStyles = []);
+    procedure TextOut(var X, Y: Int32; AText: String; AColor: Int32; AStyle: TFontStyles = []); overload;
+    procedure TextOut(var X, Y: Int32; AText: String); overload;
   public
-    property Name: String read FName;
-
     procedure DrawPopup; virtual;
     procedure DrawBackground; virtual;
     procedure DrawColumn; virtual;
@@ -52,6 +50,45 @@ begin
   end;
 end;
 
+procedure TLapeTools_AutoComplete_Item.TextOut(var X, Y: Int32; AText: String);
+var
+  Highlighter: TSynCustomHighlighter;
+  TokStart: PChar;
+  TokLen: Int32;
+  TokString: String;
+begin
+  Highlighter := FAutoComplete.Editor.Highlighter;
+  Highlighter.ResetRange();
+  Highlighter.SetLine(AText, 0);
+
+  while (not Highlighter.GetEol()) do
+  begin
+    Highlighter.GetTokenEx(TokStart, TokLen);
+
+    if (TokLen > 0) then
+    begin
+      SetLength(TokString, TokLen);
+
+      Move(TokStart^, TokString[1], TokLen);
+
+      with Highlighter.GetTokenAttribute(), FAutoComplete.Tree do
+      begin
+        if (Foreground = clNone) then
+          Canvas.Font.Color := clBlack
+        else
+          Canvas.Font.Color := ColorToRGB(Foreground);
+
+        Canvas.Font.Style := [];
+        Canvas.TextOut(X, Y, TokString);
+
+        X := X + Canvas.TextWidth(TokString);
+      end;
+    end;
+
+    Highlighter.Next();
+  end;
+end;
+
 procedure TLapeTools_AutoComplete_Item.DrawPopup;
 begin
   with FAutoComplete.Popup do
@@ -59,11 +96,6 @@ begin
     Header := '';
     Description := '';
     Declaration := nil;
-
-    if Odd(Index) then
-      Color := $F0F0F0
-    else
-      Color := clWhite;
   end;
 end;
 
@@ -102,9 +134,34 @@ end;
 
 type
   TLapeTools_AutoComplete_Type = class(TLapeTools_AutoComplete_Item)
+  protected
+    FType: TDeclaration_Type;
   public
+    procedure DrawPopup; override;
+    procedure DrawText; override;
     procedure DrawColumn; override;
+
+    constructor Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type); reintroduce;
   end;
+
+procedure TLapeTools_AutoComplete_Type.DrawPopup;
+begin
+  inherited DrawPopup();
+
+  FAutoComplete.Popup.Header := 'type ' + FType.Name.Text + ' = ' + SingleLine(FType.Text);
+  FAutoComplete.Popup.Declaration := FType;
+end;
+
+procedure TLapeTools_AutoComplete_Type.DrawText;
+var
+  X, Y: Int32;
+begin
+  X := DisplayLeft(True);
+  Y := DisplayTop();
+
+  TextOut(X, Y, FType.Name.Text, clBlack, [fsBold]);
+  TextOut(X, Y, ' = ' + SingleLine(FType.Text));
+end;
 
 procedure TLapeTools_AutoComplete_Type.DrawColumn;
 var
@@ -114,6 +171,13 @@ begin
   Y := DisplayTop();
 
   TextOut(X, Y, 'type', clMaroon);
+end;
+
+constructor TLapeTools_AutoComplete_Type.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type);
+begin
+  inherited Create(AOwner, AutoComplete);
+
+  FType := Declaration;
 end;
 
 type
@@ -145,7 +209,7 @@ begin
     begin
       Header := Header + '    ' + Name.Text;
       if (VarType <> nil) then
-        Header := Header + ': ' + VarType.Text;
+        Header := Header + ': ' + VarType.Text + ';';
       Header := Header + LineEnding;
     end;
 
@@ -179,159 +243,15 @@ end;
 
 constructor TLapeTools_AutoComplete_Record.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Record);
 begin
-  inherited Create(AOwner, AutoComplete);
+  inherited Create(AOwner, AutoComplete, Declaration);
 
   FRecord := Declaration;
-  FName := Declaration.Name.Text;
 end;
 
 type
-  TLapeTools_AutoComplete_Array = class(TLapeTools_AutoComplete_Type)
+  TLapeTools_AutoComplete_Enum = class(TLapeTools_AutoComplete_Item)
   protected
-    FArray: TDeclaration_Type_Array;
-  public
-    procedure DrawPopup; override;
-    procedure DrawText; override;
-
-    constructor Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Array); reintroduce;
-  end;
-
-procedure TLapeTools_AutoComplete_Array.DrawPopup;
-begin
-  inherited DrawPopup();
-
-  FAutoComplete.Popup.Header := 'type ' + FArray.Name.Text + ' = ' + FArray.Text;
-  FAutoComplete.Popup.Declaration := FArray;
-end;
-
-procedure TLapeTools_AutoComplete_Array.DrawText;
-var
-  X, Y: Int32;
-begin
-  X := DisplayLeft(True);
-  Y := DisplayTop();
-
-  TextOut(X, Y, FArray.Name.Text, clBlack, [fsBold]);
-  TextOut(X, Y, ' = ', clRed);
-  TextOut(X, Y, FArray.Text, clBlack);
-end;
-
-constructor TLapeTools_AutoComplete_Array.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Array);
-begin
-  inherited Create(AOwner, AutoComplete);
-
-  FArray := Declaration;
-  FName := Declaration.Name.Text;
-end;
-
-type
-  TLapeTools_AutoComplete_Alias = class(TLapeTools_AutoComplete_Type)
-  protected
-    FAlias: TDeclaration_Type_Alias;
-  public
-    procedure DrawPopup; override;
-    procedure DrawText; override;
-
-    constructor Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Alias); reintroduce;
-  end;
-
-procedure TLapeTools_AutoComplete_Alias.DrawPopup;
-begin
-  inherited DrawPopup;
-
-  FAutoComplete.Popup.Header := 'type ' + FAlias.Name.Text + ' = ' + FAlias.AliasType.Text;
-  FAutoComplete.Popup.Declaration := FAlias;
-end;
-
-procedure TLapeTools_AutoComplete_Alias.DrawText;
-var
-  X, Y: Int32;
-begin
-  X := DisplayLeft(True);
-  Y := DisplayTop();
-
-  TextOut(X, Y, FAlias.Name.Text, clBlack, [fsBold]);
-  TextOut(X, Y, ' = ', clRed);
-  TextOut(X, Y, FAlias.Text, clBlack);
-end;
-
-constructor TLapeTools_AutoComplete_Alias.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Alias);
-begin
-  inherited Create(AOwner, AutoComplete);
-
-  FAlias := Declaration;
-  FName := Declaration.Name.Text;
-end;
-
-type
-  TLapeTools_AutoComplete_Enum = class(TLapeTools_AutoComplete_Type)
-  protected
-    FEnum: TDeclaration_Type_Enum;
-  public
-    procedure DrawPopup; override;
-    procedure DrawText; override;
-
-    constructor Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Enum); reintroduce;
-  end;
-
-procedure TLapeTools_AutoComplete_Enum.DrawPopup;
-var
-  Header: String;
-  i: Int32;
-begin
-  inherited DrawPopup();
-
-  Header := 'type ' + FEnum.Name.Text + ' = ';
-  Header := Header + '(';
-
-  for i := 0 to FEnum.Elements.Count - 1 do
-  begin
-    if (i > 0) then
-      Header := Header + ', ';
-    with FEnum.Elements.Get(i) as TDeclaration_EnumElement do
-      Header := Header + Name.Text;
-  end;
-
-  Header := Header + ')';
-
-  FAutoComplete.Popup.Header := Header;
-  FAutoComplete.Popup.Declaration := FEnum;
-end;
-
-procedure TLapeTools_AutoComplete_Enum.DrawText;
-var
-  X, Y, i: Int32;
-begin
-  X := DisplayLeft(True);
-  Y := DisplayTop();
-
-  TextOut(X, Y, FEnum.Name.Text, clBlack, [fsBold]);
-  TextOut(X, Y, ' = (', clRed);
-
-  for i := 0 to FEnum.Elements.Count - 1 do
-    with FEnum.Elements.Get(i) as TDeclaration_EnumElement do
-    begin
-      if (i > 0) then
-        TextOut(X, Y, ', ', clRed);
-
-      TextOut(X, Y, Name.Text, clBlack);
-    end;
-
-  TextOut(X, Y, ')', clRed);
-end;
-
-constructor TLapeTools_AutoComplete_Enum.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Enum);
-begin
-  inherited Create(AOwner, AutoComplete);
-
-  FEnum := Declaration;
-  FName := Declaration.Name.Text;
-end;
-
-type
-  TLapeTools_AutoComplete_EnumElement = class(TLapeTools_AutoComplete_Item)
-  protected
-    FElement: TDeclaration_EnumElement;
+    FEnum: TDeclaration_EnumElement;
   public
     procedure DrawPopup; override;
     procedure DrawColumn; override;
@@ -340,15 +260,21 @@ type
     constructor Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_EnumElement); reintroduce;
   end;
 
-procedure TLapeTools_AutoComplete_EnumElement.DrawPopup;
+procedure TLapeTools_AutoComplete_Enum.DrawPopup;
+var
+  Header: String;
 begin
   inherited DrawPopup();
 
-  FAutoComplete.Popup.Header := FElement.Name.Text + ': ' + FElement.Enum.Name.Text;
-  FAutoComplete.Popup.Declaration := FElement;
+  Header := 'enum ' + FEnum.Name.Text + ': ' + FEnum.Enum.Name.Text;
+  if (FEnum.Value <> nil) then
+    Header := Header + '(' + FEnum.Value.Text + ')';
+
+  FAutoComplete.Popup.Header := Header;
+  FAutoComplete.Popup.Declaration := FEnum;
 end;
 
-procedure TLapeTools_AutoComplete_EnumElement.DrawColumn;
+procedure TLapeTools_AutoComplete_Enum.DrawColumn;
 var
   X, Y: Int32;
 begin
@@ -358,63 +284,24 @@ begin
   TextOut(X, Y, 'enum', clOlive);
 end;
 
-procedure TLapeTools_AutoComplete_EnumElement.DrawText;
+procedure TLapeTools_AutoComplete_Enum.DrawText;
 var
   X, Y: Int32;
 begin
   X := DisplayLeft(True);
   Y := DisplayTop();
 
-  TextOut(X, Y, FElement.Name.Text, clBlack, [fsBold]);
-  TextOut(X, Y, ': ', clRed);
-  TextOut(X, Y, FElement.Enum.Name.Text, clBlack);
+  TextOut(X, Y, FEnum.Name.Text, clBlack, [fsBold]);
+  TextOut(X, Y, ': ' + FEnum.Enum.Name.Text);
+  if (FEnum.Value <> nil) then
+    TextOut(X, Y, '(' + FEnum.Value.Text + ')');
 end;
 
-constructor TLapeTools_AutoComplete_EnumElement.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_EnumElement);
+constructor TLapeTools_AutoComplete_Enum.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_EnumElement);
 begin
   inherited Create(AOwner, AutoComplete);
 
-  FElement := Declaration;
-  FName := Declaration.Name.Text;
-end;
-
-type
-  TLapeTools_AutoComplete_Copy = class(TLapeTools_AutoComplete_Type)
-  protected
-    FCopy: TDeclaration_Type_Copy;
-  public
-    procedure DrawPopup; override;
-    procedure DrawText; override;
-
-    constructor Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Copy); reintroduce;
-  end;
-
-procedure TLapeTools_AutoComplete_Copy.DrawPopup;
-begin
-  inherited DrawPopup();
-
-  FAutoComplete.Popup.Header := 'type ' + FCopy.Name.Text + ' = type ' + FCopy.CopyType.Text;
-  FAutoComplete.Popup.Declaration := FCopy;
-end;
-
-procedure TLapeTools_AutoComplete_Copy.DrawText;
-var
-  X, Y: Int32;
-begin
-  X := DisplayLeft(True);
-  Y := DisplayTop();
-
-  TextOut(X, Y, FCopy.Name.Text, clBlack, [fsBold]);
-  TextOut(X, Y, ' = ', clRed);
-  TextOut(X, Y, 'type ' + FCopy.CopyType.Text, clBlack);
-end;
-
-constructor TLapeTools_AutoComplete_Copy.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Type_Copy);
-begin
-  inherited Create(AOwner, AutoComplete);
-
-  FCopy := Declaration;
-  FName := Declaration.Name.Text;
+  FEnum := Declaration;
 end;
 
 type
@@ -480,60 +367,59 @@ type
 var
   X, Y, i, j, h: Int32;
   Parameters: TParameterGroups;
+  Header: String = '';
 begin
   X := DisplayLeft(True);
   Y := DisplayTop();
 
-  with FAutoComplete.Tree do
+  Parameters := GroupParameters();
+
+  if (Length(Parameters) > 0) then
   begin
-    TextOut(X, Y, FMethod.Header.Name.Text, clBlack, [fsBold]);
+    Header := Header + '(';
 
-    Parameters := GroupParameters();
-
-    if (Length(Parameters) > 0) then
+    for i := 0 to High(Parameters) do
     begin
-      TextOut(X, Y, '(', clRed);
-
-      for i := 0 to High(Parameters) do
-      begin
-        case Parameters[i][0].Modifier of
-          pmOut: TextOut(X, Y, 'out ', clBlack);
-          pmVar: TextOut(X, Y, 'var ', clBlack);
-          pmConst: TextOut(X, Y, 'const ', clBlack);
-          pmConstRef: TextOut(X, Y, 'constref ', clBlack);
-        end;
-
-        h := High(Parameters[i]);
-        for j := 0 to h do
-        begin
-          TextOut(X, Y, Parameters[i][j].Name.Text, clBlack);
-
-          if (j < h) then
-            TextOut(X, Y, ', ', clRed);
-
-          if (j = h) then
-          begin
-            if (Parameters[i][j].VarType <> nil) then
-            begin
-              TextOut(X, Y, ': ', clRed);
-              TextOut(X, Y, Parameters[i][j].VarType.Text, clBlack);
-            end;
-
-            if (i < High(Parameters)) then
-              TextOut(X, Y, '; ', clRed);
-          end;
-        end;
+      case Parameters[i][0].Modifier of
+        pmOut: Header := Header + 'out ';
+        pmVar: Header := Header + 'var ';
+        pmConst: Header := Header + 'const ';
+        pmConstRef: Header := Header + 'constref ';
       end;
 
-      TextOut(X, Y, ')', clRed);
+      h := High(Parameters[i]);
+      for j := 0 to h do
+      begin
+         Header := Header + Parameters[i][j].Name.Text;
+
+        if (j < h) then
+          Header := Header +  ', ';
+
+        if (j = h) then
+        begin
+          if (Parameters[i][j].VarType <> nil) then
+          begin
+            Header := Header +  ': ';
+            Header := Header +  Parameters[i][j].VarType.Text;
+          end;
+
+          if (i < High(Parameters)) then
+            Header := Header + '; ';
+        end;
+      end;
     end;
 
-    if (FMethod.Header.Result <> nil) then
-    begin
-      TextOut(X, Y, ': ', clRed);
-      TextOut(X, Y, FMethod.Header.Result.Text, clBlack);
-    end;
+    Header := Header + ')';
   end;
+
+  if (FMethod.Header.Result <> nil) then
+  begin
+    Header := Header + ': ';
+    Header := Header +  FMethod.Header.Result.Text;
+  end;
+
+  TextOut(X, Y, FMethod.Header.Name.Text, clBlack, [fsBold]);
+  TextOut(X, Y, Header);
 end;
 
 constructor TLapeTools_AutoComplete_Method.Create(AOwner: TTreeNodes; AutoComplete: TLapeTools_AutoComplete; Declaration: TDeclaration_Method);
@@ -541,7 +427,6 @@ begin
   inherited Create(AOwner, AutoComplete);
 
   FMethod := Declaration;
-  FName := Declaration.Header.Name.Text;
 end;
 
 type
@@ -561,7 +446,6 @@ begin
   inherited Create(AOwner, AutoComplete);
 
   FVariable := Declaration;
-  FName := Declaration.Name.Text;
 end;
 
 procedure TLapeTools_AutoComplete_Variable.DrawPopup;
@@ -593,23 +477,19 @@ end;
 procedure TLapeTools_AutoComplete_Variable.DrawText;
 var
   X, Y: Int32;
+  Header: String = '';
 begin
   X := DisplayLeft(True);
   Y := DisplayTop();
 
-  TextOut(X, Y, FVariable.Name.Text, clBlack, [fsBold]);
-
   if (FVariable.VarType <> nil) then
-  begin
-    TextOut(X, Y, ': ', clRed);
-    TextOut(X, Y, FVariable.VarType.Text, clBlack);
-  end;
+    Header := Header + ': ' + FVariable.VarType.Text;
 
   if (FVariable.Value <> nil) then
-  begin
-    TextOut(X, Y, ' = ', clRed);
-    TextOut(X, Y, SingleLine(FVariable.Value.Text), clBlack);
-  end;
+    Header := Header + ' = ' + SingleLine(FVariable.Value.Text);
+
+  TextOut(X, Y, FVariable.Name.Text, clBlack, [fsBold]);
+  TExtOut(X, Y, Header);
 end;
 
 type
@@ -722,7 +602,6 @@ begin
   inherited Create(AOwner, AutoComplete);
 
   FLabel := Declaration;
-  FName := FLabel.Name.Text;
 end;
 
 type
@@ -782,7 +661,6 @@ begin
   inherited Create(AOwner, AutoComplete);
 
   FType := Declaration;
-  FName := 'Self';
 end;
 
 type
@@ -832,6 +710,5 @@ begin
   inherited Create(AOwner, AutoComplete);
 
   FResult := Declaration;
-  FName := 'Result';
 end;
 

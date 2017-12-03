@@ -23,11 +23,22 @@ type
     procedure Paint; override;
   end;
 
+  TLapeTools_AutoComplete_Popup_Header = class(TLabel)
+  protected
+    FAutoComplete: TLapeTools_AutoComplete;
+
+    procedure TextOut(var X, Y: Int32; AText: String);
+  public
+    property AutoComplete: TLapeTools_AutoComplete read FAutoComplete write FAutoComplete;
+
+    procedure Paint; override;
+  end;
+
   TLapeTools_AutoComplete_Popup = class(TForm)
   protected
     FAutoComplete: TLapeTools_AutoComplete;
     FTimer: TTimer;
-    FHeader: TLabel;
+    FHeader: TLapeTools_AutoComplete_Popup_Header;
     FDescription: TLabel;
     FLocation: TLabel;
     FDeclaration: TDeclaration;
@@ -35,6 +46,7 @@ type
     procedure SetDeclaration(ADeclaration: TDeclaration);
     procedure SetDescription(ADescription: String);
     procedure SetHeader(AHeader: String);
+    procedure SetAutoComplete(Value: TLapeTools_AutoComplete);
 
     procedure DoHide; override;
     procedure DoShow; override;
@@ -46,7 +58,7 @@ type
 
     procedure Paint; override;
   public
-    property AutoComplete: TLapeTools_AutoComplete read FAutoComplete write FAutoComplete;
+    property AutoComplete: TLapeTools_AutoComplete read FAutoComplete write SetAutoComplete;
     property Header: String write SetHeader;
     property Declaration: TDeclaration write SetDeclaration;
     property Description: String write SetDescription;
@@ -57,8 +69,6 @@ type
   TLapeTools_AutoComplete_Tree = class(TTreeView)
   protected
     FAutoComplete: TLapeTools_AutoComplete;
-
-    function Compare(Node, CompareTo: TTreeNode): Int32;
 
     procedure DoShowPopup(var Message: TLMessage); message CM_HINTSHOW;
     procedure DoChange(Sender: TObject; Node: TTreeNode);
@@ -72,9 +82,8 @@ type
     procedure Add(Declaration: TDeclaration_Variable); overload;
     procedure Add(Declaration: TDeclaration_Constant); overload;
     procedure Add(Declaration: TDeclaration_Type_Enum); overload;
-    procedure Add(Declaration: TDeclaration_Type_Array); overload;
     procedure Add(Declaration: TDeclaration_Label); overload;
-    procedure Add(Declaration: TDeclaration_Type_Copy); overload;
+    procedure Add(Declaration: TDeclaration_Type); overload;
 
     procedure AddField(Declaration: TDeclaration_Variable);
     procedure AddParameter(Declaration: TDeclaration_Variable);
@@ -133,9 +142,71 @@ type
 implementation
 
 uses
-  Math;
+  Math, SynEditHighlighter;
 
 {$i lpt_autocomplete_types.inc}
+
+procedure TLapeTools_AutoComplete_Popup_Header.TextOut(var X, Y: Int32; AText: String);
+var
+  Highlighter: TSynCustomHighlighter;
+  TokStart: PChar;
+  TokLen, i: Int32;
+  TokString: String;
+  Lines: TStringList;
+begin
+  Highlighter := FAutoComplete.Editor.Highlighter;
+
+  Lines := TStringList.Create();
+  Lines.Text := AText;
+
+  for i := 0 to Lines.Count - 1 do
+  begin
+    Highlighter.ResetRange();
+    Highlighter.SetLine(Lines[i], 0);
+
+    while (not Highlighter.GetEol()) do
+    begin
+      Highlighter.GetTokenEx(TokStart, TokLen);
+
+      if (TokLen > 0) then
+      begin
+        SetLength(TokString, TokLen);
+
+        Move(TokStart^, TokString[1], TokLen);
+
+        with Highlighter.GetTokenAttribute() do
+        begin
+          if (Foreground = clNone) then
+            Canvas.Font.Color := clBlack
+          else
+            Canvas.Font.Color := ColorToRGB(Foreground);
+
+          Canvas.Font.Style := Style;
+          Canvas.TextOut(X, Y, TokString);
+
+          X := X + Canvas.TextWidth(TokString);
+        end;
+      end;
+
+      Highlighter.Next();
+    end;
+
+    X := 0;
+    Y := Y + Canvas.TextHeight('TaylorSwift');
+  end;
+
+  Lines.Free();
+end;
+
+procedure TLapeTools_AutoComplete_Popup_Header.Paint;
+var
+  X, Y: Int32;
+begin
+  X := 0;
+  Y := 0;
+
+  TextOut(X, Y, Caption);
+end;
 
 procedure TLapeTools_AutoComplete_Popup.SetDeclaration(ADeclaration: TDeclaration);
 begin
@@ -183,6 +254,13 @@ begin
   end;
 end;
 
+procedure TLapeTools_AutoComplete_Popup.SetAutoComplete(Value: TLapeTools_AutoComplete);
+begin
+  FAutoComplete := Value;
+
+  FHeader.AutoComplete := FAutoComplete;
+end;
+
 procedure TLapeTools_AutoComplete_Popup.DoHide;
 begin
   if FAutoComplete.Form.CanFocus() then
@@ -204,7 +282,7 @@ var
   P: TPoint;
 begin
   P := Mouse.CursorPos;
-  if (P.X < Left) or (P.Y < Top) or (P.X > Left + Width) or (P.Y > Top + Height) then
+  if (P.X < Left) or (P.Y < Top - 5) or (P.X > Left + Width) or (P.Y > Top + Height) then
     Hide();
 end;
 
@@ -248,6 +326,7 @@ begin
 
   KeyPreview := True;
   ShowInTaskBar := stNever;
+  Color := clWhite;
 
   OnKeyDown := @DoKeyDown;
   OnKeyPress := @DoKeyPress;
@@ -257,7 +336,7 @@ begin
   FTimer.OnTimer := @DoTimer;
   FTimer.Interval := 100;
 
-  FHeader := TLabel.Create(Self);
+  FHeader := TLapeTools_AutoComplete_Popup_Header.Create(Self);
   with FHeader do
   begin
     Parent := Self;
@@ -351,17 +430,13 @@ begin
   Canvas.LineTo(ClientRect.Right, ClientRect.Bottom - 12);
 end;
 
-function TLapeTools_AutoComplete_Tree.Compare(Node, CompareTo: TTreeNode): Int32;
-begin
-  Result := CompareText(LowerCase(TLapeTools_AutoComplete_Item(Node).Name), LowerCase(TLapeTools_AutoComplete_Item(CompareTo).Name));
-end;
-
 procedure TLapeTools_AutoComplete_Tree.DoShowPopup(var Message: TLMessage);
 var
   Node: TTreeNode;
   i: Int32;
 begin
   Node := GetNodeAt(ScreenToClient(Mouse.CursorPos).X, ScreenToClient(Mouse.CursorPos).Y);
+
   if (Node <> nil) then
     with Node as TLapeTools_AutoComplete_Item, FAutoComplete.Popup do
     begin
@@ -370,8 +445,8 @@ begin
       for i := 0 to ControlCount - 1 do
         if Controls[i].Visible then
         begin
-          Left := Mouse.CursorPos.X - 1;
-          Top := Mouse.CursorPos.Y - 1;
+          Left := Mouse.CursorPos.X;
+          Top := Mouse.CursorPos.Y + 5;
           Show();
         end;
     end;
@@ -385,6 +460,8 @@ end;
 
 procedure TLapeTools_AutoComplete_Tree.DoChanging(Sender: TObject; Node: TTreeNode; var AllowChange: Boolean);
 begin
+  FAutoComplete.Popup.Visible := False;
+
   if (Node <> nil) then
     Node.Collapse(True);
 end;
@@ -406,7 +483,7 @@ end;
 
 procedure TLapeTools_AutoComplete_Tree.Add(Declaration: TDeclaration_Method);
 begin
-  Items.AddNode(TLapeTools_AutoComplete_Method.Create(Items, FAutoComplete, Declaration), nil, Declaration.Header.Text, nil, naAdd);
+  Items.AddNode(TLapeTools_AutoComplete_Method.Create(Items, FAutoComplete, Declaration), nil, Declaration.Header.Name.Text, nil, naAdd);
 end;
 
 procedure TLapeTools_AutoComplete_Tree.Add(Declaration: TDeclaration_Type_Record);
@@ -429,19 +506,14 @@ var
   i: Int32;
   Element: TDeclaration_EnumElement;
 begin
-  Items.AddNode(TLapeTools_AutoComplete_Enum.Create(Items, FAutoComplete, Declaration), nil, Declaration.Name.Text, nil, naAdd);
+  Items.AddNode(TLapeTools_AutoComplete_Type.Create(Items, FAutoComplete, Declaration), nil, Declaration.Name.Text, nil, naAdd);
 
   for i := 0 to Declaration.Elements.Count - 1 do
   begin
     Element := Declaration.Elements.Get(i) as TDeclaration_EnumElement;
 
-    Items.AddNode(TLapeTools_AutoComplete_EnumElement.Create(Items, FAutoComplete, Element), nil, Element.Name.Text, nil, naAdd);
+    Items.AddNode(TLapeTools_AutoComplete_Enum.Create(Items, FAutoComplete, Element), nil, Element.Name.Text, nil, naAdd);
   end;
-end;
-
-procedure TLapeTools_AutoComplete_Tree.Add(Declaration: TDeclaration_Type_Array);
-begin
-  Items.AddNode(TLapeTools_AutoComplete_Array.Create(Items, FAutoComplete, Declaration), nil, Declaration.Name.Text, nil, naAdd);
 end;
 
 procedure TLapeTools_AutoComplete_Tree.Add(Declaration: TDeclaration_Label);
@@ -449,9 +521,9 @@ begin
   Items.AddNode(TLapeTools_AutoComplete_Label.Create(Items, FAutoComplete, Declaration), nil, Declaration.Name.Text, nil, naAdd);
 end;
 
-procedure TLapeTools_AutoComplete_Tree.Add(Declaration: TDeclaration_Type_Copy);
+procedure TLapeTools_AutoComplete_Tree.Add(Declaration: TDeclaration_Type);
 begin
-  Items.AddNode(TLapeTools_AutoComplete_Copy.Create(Items, FAutoComplete, Declaration), nil, Declaration.Name.Text, nil, naAdd);
+  Items.AddNode(TLapeTools_AutoComplete_Type.Create(Items, FAutoComplete, Declaration), nil, Declaration.Name.Text, nil, naAdd);
 end;
 
 procedure TLapeTools_AutoComplete_Tree.AddField(Declaration: TDeclaration_Variable);
@@ -578,12 +650,10 @@ procedure TLapeTools_AutoComplete.Fill;
         FTree.Add(Declaration as TDeclaration_Variable)
       else if (Declaration is TDeclaration_Type_Enum) then
         FTree.Add(Declaration as TDeclaration_Type_Enum)
-      else if (Declaration is TDeclaration_Type_Array) then
-        FTree.Add(Declaration as TDeclaration_Type_Array)
       else if (Declaration is TDeclaration_Label) then
         FTree.Add(Declaration as TDeclaration_Label)
-      else if (Declaration is TDeclaration_Type_Copy) then
-        FTree.Add(Declaration as TDeclaration_Type_Copy);
+      else if (Declaration is TDeclaration_Type) then
+        FTree.Add(Declaration as TDeclaration_Type);
     end;
   end;
 
@@ -637,12 +707,7 @@ begin
   FTree.Items.Clear();
 
   if (Pos('.', FExpression) > 0) then
-  begin
-    if (FExpression[Length(FExpression)] <> '.') then
-      FExpression := Copy(FExpression, 1, LastDelimiter('.', FExpression));
-
-    addMembers(FParser.ParseExpression(FExpression, True))
-  end
+    addMembers(FParser.ParseExpression(Copy(FExpression, 1, LastDelimiter('.', FExpression)), True))
   else
   begin
     if (FParser.InMethod <> nil) then
@@ -651,7 +716,7 @@ begin
     addMap(FParser.Map);
   end;
 
-  FTree.Items.SortTopLevelNodes(@FTree.Compare);
+  FTree.AlphaSort();
   FTree.EndUpdate();
 end;
 
@@ -669,7 +734,7 @@ begin
     for i := 0 to FTree.Items.TopLvlCount - 1 do
     begin
       Node := FTree.Items.TopLvlItems[i];
-      Node.Visible := (Word = '') or (Pos(Word, LowerCase(TLapeTools_AutoComplete_Item(Node).Name)) = 1);
+      Node.Visible := (Word = '') or (Pos(Word, LowerCase(Node.Text)) = 1);
     end;
 
     Node := FTree.Items.GetFirstVisibleNode();
@@ -712,7 +777,7 @@ end;
 procedure TLapeTools_AutoComplete.Insert(Sender: TObject);
 begin
   if (FTree.Selected <> nil) then
-    FEditor.TextBetweenPointsEx[FStartPos, FEditor.CaretXY, scamEnd] := TLapeTools_AutoComplete_Item(FTree.Selected).Name;
+    FEditor.TextBetweenPointsEx[FStartPos, FEditor.CaretXY, scamEnd] := FTree.Selected.Text;
 
   FForm.Hide();
 
