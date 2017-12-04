@@ -618,8 +618,7 @@ procedure TLapeTools_AutoComplete.DoKeyDown(Sender: TObject; var Key: Word; Shif
 begin
   if (Key = VK_RETURN) then
   begin
-    if (FTree.Selected <> nil) then
-      Insert(nil);
+    Insert(nil);
 
     Key := VK_UNKNOWN;
   end;
@@ -684,6 +683,7 @@ procedure TLapeTools_AutoComplete.Fill;
   procedure addLocals(Method: TDeclaration_Method);
   var
     i: Int32;
+    Declaration: TDeclaration_Type;
   begin
     addMap(Method.Locals);
 
@@ -693,7 +693,17 @@ procedure TLapeTools_AutoComplete.Fill;
         FTree.AddParameter(Parameters.Get(i));
 
       if (MethodType in [mtProcedureOfObject, mtFunctionOfObject]) and (FParser.Map.GetType(ObjectName.Text) <> nil) then
-        FTree.AddSelf(FParser.Map.GetType(ObjectName.Text));
+      begin
+        Declaration := FParser.Map.GetType(ObjectName.Text);
+
+        if (Declaration <> nil) then
+        begin
+          FTree.AddSelf(Declaration);
+
+          addMembers(Declaration);
+        end;
+      end;
+
       if (MethodType in [mtFunctionOfObject, mtFunction]) then
         FTree.AddResult(Result);
     end;
