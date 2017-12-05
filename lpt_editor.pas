@@ -25,6 +25,7 @@ type
   protected
     FFilePath: String;
     FPaths: TStringList;
+    FInternalIncludes: TStringList;
     FOnShowDeclaration: TLapeTools_ShowDeclaration;
     FCommandProcessors: TLapeTools_CommandProcessors;
 
@@ -42,6 +43,7 @@ type
     property ChangeStamp: Int64 read GetChangeStamp;
     property FilePath: String read FFilePath;
     property Paths: TStringList read FPaths;
+    property InternalIncludes: TStringList read FInternalIncludes;
     property Script: String read GetScript;
     property Caret: Int32 read GetCaret;
 
@@ -58,7 +60,7 @@ type
     procedure Save;
     procedure SaveAs(AFilePath: String);
 
-    function GetParser(Parse: Boolean): TLapeTools_ScriptParser;
+    function GetParser(Parse: Boolean; AddInternalIncludes: Boolean = True): TLapeTools_ScriptParser;
     function GetExpression(var StartPos, EndPos: TPoint): String; overload;
     function GetExpression: String; overload;
 
@@ -220,10 +222,17 @@ begin
   MarkTextAsSaved();
 end;
 
-function TLapeTools_Editor.GetParser(Parse: Boolean): TLapeTools_ScriptParser;
+function TLapeTools_Editor.GetParser(Parse: Boolean; AddInternalIncludes: Boolean): TLapeTools_ScriptParser;
+var
+  i: Int32;
 begin
   Result := TLapeTools_ScriptParser.Create(Script, FilePath, Caret);
   Result.Paths.AddStrings(FPaths);
+
+  if AddInternalIncludes then
+    for i := 0 to FInternalIncludes.Count - 1 do
+      Result.HandleDirective(Result.Tokenizer, 'include_once', FInternalIncludes[i]);
+
   if Parse then
     Result.Parse();
 end;
@@ -291,7 +300,7 @@ function TLapeTools_Editor.GetExpression(var StartPos, EndPos: TPoint): String;
     Line: String;
   begin
     Line := Lines[EndPos.Y - 1];
-    while (EndPos.X <= Length(Line)) and (Line[EndPos.X] in ['_', '0'..'9', 'A'..'Z', 'a'..'z']) do
+    while (EndPos.X <= Length(Line)) and (Line[EndPos.X] in IdentChars) do
       Inc(EndPos.X);
 
     StartPos := EndPos;
@@ -361,11 +370,13 @@ begin
   end;
 
   FPaths := TStringList.Create();
+  FInternalIncludes := TStringList.Create();
 end;
 
 destructor TLapeTools_Editor.Destroy;
 begin
   FPaths.Free();
+  FInternalIncludes.Free();
 
   inherited Destroy();
 end;

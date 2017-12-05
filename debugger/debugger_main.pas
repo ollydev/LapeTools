@@ -7,14 +7,14 @@ interface
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
   ComCtrls, PairSplitter, Menus, SynHighlighterPas,
-  lptypes, lpt_editor, lpt_AutoComplete;
+  lptypes, lpt_editor, lpt_AutoComplete, lpt_codeview;
 
 type
   TDebugForm = class(TForm)
     lblParseTime: TLabel;
     Highlighter: TSynFreePascalSyn;
     PairSplitter: TPairSplitter;
-    pnlTrees: TPairSplitterSide;
+    pnlView: TPairSplitterSide;
     pnlEditor: TPairSplitterSide;
     ToolBar: TToolBar;
     btnParse: TToolButton;
@@ -23,6 +23,7 @@ type
     procedure DoParse(Sender: TObject);
   public
     Editor: TLapeTools_Editor;
+    CodeView: TLapeTools_CodeView;
 
     procedure ShowDeclaration(Line, Column: Int32; FilePath: String);
   end;
@@ -65,6 +66,14 @@ begin
     OnShowDeclaration := @ShowDeclaration;
     Paths.Add('Includes/');
     Load('default.simba');
+  end;
+
+  CodeView := TLapeTools_CodeView.Create(Self);
+  with CodeView do
+  begin
+    Parent := pnlView;
+    Align := alClient;
+    Editor := Self.Editor;
   end;
 
   AutoComplete := TLapeTools_AutoComplete.Create(Self);

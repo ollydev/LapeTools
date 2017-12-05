@@ -50,7 +50,7 @@ object DebugForm: TDebugForm
     Width = 767
     Align = alClient
     Position = 200
-    object pnlTrees: TPairSplitterSide
+    object pnlView: TPairSplitterSide
       Cursor = crArrow
       Left = 0
       Height = 655

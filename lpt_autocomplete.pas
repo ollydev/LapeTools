@@ -5,8 +5,8 @@ unit lpt_autocomplete;
 interface
 
 uses
-  Classes, SysUtils, SynEditKeyCmds, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ComCtrls, ExtCtrls, SynEdit, LMessages, LCLType, LCLIntf,
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls,
+  ComCtrls, ExtCtrls, SynEditKeyCmds, SynEdit, LMessages, LCLType, LCLIntf,
   lpt_editor, lpt_globals, lpt_parser;
 
 type
@@ -289,7 +289,16 @@ end;
 procedure TLapeTools_AutoComplete_Popup.DoClick(Sender: TObject);
 begin
   if (FAutoComplete.Editor.OnShowDeclaration <> nil) then
+  begin
     FAutoComplete.Editor.OnShowDeclaration(FDeclaration.DocPos.Line, FDeclaration.DocPos.Col, FDeclaration.DocPos.FileName);
+
+    with FAutoComplete do
+    begin
+      Hide();
+      if Editor.CanFocus() then
+        Editor.SetFocus();
+    end;
+  end;
 end;
 
 procedure TLapeTools_AutoComplete_Popup.DoKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -576,6 +585,8 @@ begin
   BorderStyle := bsNone;
   KeyPreview := True;
   ShowInTaskBar := stNever;
+  Width := 450;
+  Height := 200;
 
   FTree := TLapeTools_AutoComplete_Tree.Create(Self);
   with FTree do
@@ -606,7 +617,17 @@ procedure TLapeTools_AutoComplete.DoKeyPress(Sender: TObject; var Key: Char);
 begin
   case Key of
     #32..#122:
-      FEditor.CommandProcessor(ecChar, Key, nil);
+      begin
+        FEditor.CommandProcessor(ecChar, Key, nil);
+
+        if (not (Key in FEditor.IdentChars)) then
+        begin
+          FForm.Hide();
+
+          if FEditor.CanFocus() then
+            FEditor.SetFocus();
+        end;
+      end;
     #8:
       FEditor.CommandProcessor(ecDeleteLastChar, #0, nil);
   end;

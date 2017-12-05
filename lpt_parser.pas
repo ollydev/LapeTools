@@ -16,7 +16,7 @@ type
 
   TDeclarationStack = specialize TLapeStack<TDeclaration>;
   TDeclarationList = specialize TLapeList<TDeclaration>;
-  TDeclarationMap = class(specialize TLapeStringMap<TDeclaration>);
+  TDeclarationMap = specialize TLapeStringMap<TDeclaration>;
 
   TLapeTools_Caret = record
     Reached: Boolean;
@@ -28,6 +28,9 @@ type
     Len: Int32;
   end;
 
+  ELapeTools_ParserSetting = (psParseIncludes, psAddMethodUnderType);
+  ELapeTools_ParserSettings = set of ELapeTools_ParserSetting;
+
   TLapeTools_Parser = class(TLapeCompiler)
   protected
     FData: TDeclarationList;
@@ -37,9 +40,9 @@ type
     FCaret: TLapeTools_Caret;
     FInMethod: TDeclaration_Method;
     FPaths: TStringList;
-    FParseIncludes: Boolean;
     FFilePath: lpString;
     FFileAge: Int32;
+    FSettings: ELapeTools_ParserSettings;
 
     function HandleDirective(Sender: TLapeTokenizerBase; Directive, Argument: lpString): Boolean; override;
   public
@@ -52,8 +55,8 @@ type
     property FilePath: lpString read FFilePath;
     property FileAge: Int32 read FFileAge write FFileAge;
     property Paths: TStringList read FPaths;
-    property ParseIncludes: Boolean read FParseIncludes write FParseIncludes;
     property Includes: TStringList read FIncludes;
+    property Settings: ELapeTools_ParserSettings read FSettings write FSettings;
 
     function FindFile(AFilePath: lpString): lpString;
     function Find(Name: lpString): TDeclaration;
@@ -392,7 +395,7 @@ begin
             Argument := Path;
           end;
 
-          if (not FParseIncludes) then
+          if (not (psParseIncludes in FSettings)) then
             Exit(True);
         end;
     end;
@@ -794,8 +797,7 @@ begin
   Reset();
 end;
 
-constructor TLapeTools_Parser.Create(ADoc: lpString; AFilePath: lpString;
-  ACaret: Int32);
+constructor TLapeTools_Parser.Create(ADoc: lpString; AFilePath: lpString; ACaret: Int32);
 begin
   Create(TLapeTokenizerString.Create(ADoc, AFilePath));
 
@@ -807,7 +809,7 @@ begin
   FFilePath := AFilePath;
   FFileAge := SysUtils.FileAge(FFilePath);
 
-  FParseIncludes := True;
+  FSettings := [psParseIncludes, psAddMethodUnderType];
 
   FCaret.Pos := ACaret;
   if (FCaret.Pos = 0) then
@@ -826,7 +828,7 @@ begin
   FFilePath := AFilePath;
   FFileAge := SysUtils.FileAge(FFilePath);
 
-  FParseIncludes := True;
+  FSettings := [psParseIncludes, psAddMethodUnderType];
 end;
 
 destructor TLapeTools_Parser.Destroy;
@@ -1675,7 +1677,9 @@ begin
        if (Result.Header.MethodType in [mtProcedureOfObject, mtFunctionOfObject]) then
         begin
           Add(Result.Header.ObjectName.Text + '.' + Result.Header.Name.Text, Result);
-          Add(Result.Header.ObjectName.Text, Result);
+
+          if (psAddMethodUnderType in FSettings) then
+            Add(Result.Header.ObjectName.Text, Result);
         end else
           Add(Result.Header.Name.Text, Result);
       end;

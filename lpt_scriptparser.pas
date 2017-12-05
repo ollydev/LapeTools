@@ -31,9 +31,9 @@ type
   TLapeTools_ScriptParser = class(TLapeTools_Parser)
   protected
     FCachedIncludes: TLapeTools_CachedIncludes;
-
-    function HandleDirective(Sender: TLapeTokenizerBase; Directive, Argument: lpString): Boolean; override;
   public
+    function HandleDirective(Sender: TLapeTokenizerBase; Directive, Argument: lpString): Boolean; override;
+
     constructor Create(ADoc: lpString; AFilePath: lpString; ACaret: Int32); overload;
     constructor Create(AFilePath: lpString); overload;
 
@@ -129,7 +129,7 @@ begin
 
             FMap.Add(Declaration.Text, Declaration);
 
-            if (FParseIncludes) and (FIncludes.IndexOf(Path) = -1) then
+            if (psParseIncludes in FSettings) and (FIncludes.IndexOf(Path) = -1) then
             begin
               FIncludes.Add(Path);
 
