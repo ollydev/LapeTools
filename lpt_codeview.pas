@@ -151,7 +151,7 @@ begin
           with Declaration as TDeclaration_Method do
           begin
             if (Header.MethodType in [mtFunctionOfObject, mtProcedureOfObject]) then
-              Declaration.Text := Header.ObjectName.Text + '. ' + Header.Name.Text
+              Declaration.Text := Header.ObjectName.Text + '.' + Header.Name.Text
             else
               Declaration.Text := Header.Name.Text;
           end;
