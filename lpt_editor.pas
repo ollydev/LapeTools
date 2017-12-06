@@ -14,12 +14,13 @@ const
   lecFocusLost = ecUserFirst + 3;
   lecFocus = ecUserFirst + 4;
   lecCaretChange = ecUserFirst + 5;
-  lecPaint = ecUserFirst + 6;
+  lecScroll = ecUserFirst + 6;
 
 type
   TLapeTools_ShowDeclaration = procedure(Line, Column: Int32; FilePath: String) of object;
   TLapeTools_CommandProcessor = procedure(var Command: TSynEditorCommand; Char: TUTF8Char) of object;
   TLapeTools_CommandProcessors = array of TLapeTools_CommandProcessor;
+  TLapeTools_ScanCallback = function(Char: String; var Inside: Int32): Boolean;
 
   TLapeTools_Editor = class(TSynEdit)
   protected
@@ -29,6 +30,8 @@ type
     FOnShowDeclaration: TLapeTools_ShowDeclaration;
     FCommandProcessors: TLapeTools_CommandProcessors;
 
+    function Scan(XY: TPoint; Callback: TLapeTools_ScanCallback): TPoint;
+
     function GetChangeStamp: Int64;
     function GetScript: String;
     function GetCaret: Int32;
@@ -36,7 +39,6 @@ type
     procedure DoMouseLink(Sender: TObject; X, Y: Integer; var AllowMouseLink: Boolean);
     procedure DoClickLink(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DoCaretChange(Sender: TObject);
-    procedure DoPaint(Sender: TObject; ACanvas: TCanvas);
   public
     property OnShowDeclaration: TLapeTools_ShowDeclaration read FOnShowDeclaration write FOnShowDeclaration;
 
@@ -61,8 +63,9 @@ type
     procedure SaveAs(AFilePath: String);
 
     function GetParser(Parse: Boolean; AddInternalIncludes: Boolean = True): TLapeTools_ScriptParser;
-    function GetExpression(var StartPos, EndPos: TPoint): String; overload;
+    function GetExpression(var StartXY, EndXY: TPoint): String; overload;
     function GetExpression: String; overload;
+    function GetParameterStart: TPoint;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -91,6 +94,54 @@ begin
         Command := lecFocus;
         CommandProcessor(Command, Char, nil);
       end;
+    LM_VSCROLL, LM_HSCROLL, LM_MOUSEWHEEL:
+      begin
+        Command := lecScroll;
+        CommandProcessor(Command, Char, nil);
+      end;
+  end;
+end;
+
+function TLapeTools_Editor.Scan(XY: TPoint; Callback: TLapeTools_ScanCallback): TPoint;
+
+  function IsJunk(XY: TPoint): Boolean;
+  var
+    Token: String;
+    Attri: TSynHighlighterAttributes;
+  begin
+    if GetHighlighterAttriAtRowCol(XY, Token, Attri) then
+    begin
+      if (Attri.Name = SYNS_AttrComment) or (Attri.Name = SYNS_AttrDirective) then
+        Exit(True);
+    end;
+
+    Exit(False);
+  end;
+
+var
+  Line: String;
+  Inside: Int32 = 0;
+begin
+  Line := Copy(Lines[XY.Y - 1], 1, XY.X);
+
+  while (XY.Y > 0) do
+  begin
+    XY.X := Length(Line) + 1;
+
+    while (XY.X > 0) do
+    begin
+      if (not IsJunk(Point(XY.X - 1, XY.Y))) and (not Callback(TextBetweenPoints[Point(XY.X - 1, XY.Y), XY], Inside)) then
+        Exit(XY);
+
+      Dec(XY.X);
+    end;
+
+    if (not Callback(#10, Inside)) then
+      Exit(XY);
+
+    Dec(XY.Y);
+    if (XY.Y > 0) then
+      Line := Lines[XY.Y - 1];
   end;
 end;
 
@@ -143,14 +194,6 @@ begin
   CommandProcessor(Command, Char, nil);
 end;
 
-procedure TLapeTools_Editor.DoPaint(Sender: TObject; ACanvas: TCanvas);
-var
-  Command: TSynEditorCommand = lecPaint;
-  Char: TUTF8Char = '';
-begin
-  CommandProcessor(Command, Char, nil);
-end;
-
 procedure TLapeTools_Editor.CommandProcessor(Command: TSynEditorCommand; Char: TUTF8Char; Data: Pointer);
 
   function InJunk: Boolean;
@@ -174,9 +217,13 @@ begin
   if (Command < ecUserFirst) then
     inherited CommandProcessor(Command, Char, Data);
 
-  if (Command = ecChar) and (Char = '.') then
-    Command := lecAutoComplete;
-  if (Command = lecAutoComplete) and InJunk() then
+  if (Command = ecChar) then
+    case Char of
+      '.': Command := lecAutoComplete;
+      '(': Command := lecParameterHint;
+    end;
+
+  if ((Command = lecAutoComplete) or (Command = lecParameterHint)) and InJunk() then
     Exit;
 
   for i := 0 to High(FCommandProcessors) do
@@ -247,89 +294,74 @@ begin
   CaretX := X;
   CaretY := Y;
 
-  SelectWord();
+  if (X > 0) and (Y > 0) then
+    SelectWord();
 end;
 
-function TLapeTools_Editor.GetExpression(var StartPos, EndPos: TPoint): String;
-
-  function IsComment(Position: TPoint): Boolean;
-  var
-    Token: String;
-    Attri: TSynHighlighterAttributes;
-  begin
-    Result := GetHighlighterAttriAtRowCol(Position, Token, Attri) and (Attri.Name = SYNS_AttrComment);
-  end;
-
-  procedure GetStart;
-  var
-    Line: String;
-    Lock: Int32;
-  begin
-    Lock := 0;
-
-    while (StartPos.Y > 0) do
-    begin
-      Line := Lines[StartPos.Y - 1];
-      StartPos.X := Length(Line) + 1;
-
-      while (StartPos.X > 1) do
-      begin
-        if (not IsComment(StartPos)) then
-          case Line[StartPos.X - 1] of
-            '[', '(':
-              Inc(Lock);
-            ']', ')':
-              Dec(Lock);
-            ' ', #9:
-              if (Lock = 0) then
-                Exit;
-          end;
-
-        Dec(StartPos.X);
-      end;
-
-      if (Lock = 0) then
-        Exit;
-
-      Dec(StartPos.Y);
-    end;
-  end;
-
-  procedure GetEnd;
-  var
-    Line: String;
-  begin
-    Line := Lines[EndPos.Y - 1];
-    while (EndPos.X <= Length(Line)) and (Line[EndPos.X] in IdentChars) do
-      Inc(EndPos.X);
-
-    StartPos := EndPos;
-  end;
-
+function __GetExpression(Char: String; var Inside: Int32): Boolean;
 begin
-  GetEnd();
-  if (Length(Lines[EndPos.Y - 1]) > 0) and (EndPos.X <= Length(Lines[EndPos.Y - 1]) + 1) then
-    GetStart();
+  case Char of
+    '[', '(':
+      Inside := Inside + 1;
+    ']', ')':
+      Inside := Inside - 1;
+    #32, #10:
+      if (Inside = 0) then
+        Exit(False);
+  end;
 
-  Result := TextBetweenPoints[StartPos, EndPos];
+  Exit(True);
+end;
+
+function __GetExpressionEx(Char: String; var Inside: Int32): Boolean;
+begin
+  Result := not (Char = '.');
+end;
+
+function TLapeTools_Editor.GetExpression(var StartXY, EndXY: TPoint): String;
+begin
+  while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
+    Inc(EndXY.X);
+
+  StartXY := Scan(StartXY, @__GetExpression);
+
+  Result := TextBetweenPoints[StartXY, EndXY];
 
   if (Pos('.', Result) > 0) then
-  begin
-    StartPos := EndPos;
-
-    while (StartPos.X > 1) and (Lines[StartPos.Y - 1][StartPos.X - 1] <> '.') do
-      Dec(StartPos.X);
-  end;
+    StartXY := Scan(EndXY, @__GetExpressionEx);
 end;
 
 function TLapeTools_Editor.GetExpression: String;
 var
-  StartPos, EndPos: TPoint;
+  StartXY, EndXY: TPoint;
 begin
-  StartPos := CaretXY;
-  EndPos := CaretXY;
+  StartXY := CaretXY;
+  EndXY := CaretXY;
 
-  Result := GetExpression(StartPos, EndPos);
+  Result := GetExpression(StartXY, EndXY);
+end;
+
+function __GetParameterStart(Char: String; var Inside: Int32): Boolean;
+begin
+  case Char of
+    ')', ']':
+      Inside := Inside + 1;
+    '(', '[':
+      begin
+        if (Inside = 0) then
+          Exit(False);
+
+        Inside := Inside - 1;
+      end;
+  end;
+
+  Exit(True);
+end;
+
+function TLapeTools_Editor.GetParameterStart: TPoint;
+begin
+  Result := Scan(CaretXY, @__GetParameterStart);
+  Result.X := Result.X - 1;
 end;
 
 constructor TLapeTools_Editor.Create(AOwner: TComponent);
@@ -341,7 +373,6 @@ begin
   Font.Name := 'Consolas';
   Font.Quality := fqDefault;
 
-  OnPaint := @DoPaint;
   OnMouseLink := @DoMouseLink;
   OnClickLink := @DoClickLink;
 

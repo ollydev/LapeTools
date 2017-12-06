@@ -102,7 +102,7 @@ begin
   begin
     Parent := Self;
     Align := alBottom;
-    FilteredTreeview := FTree;
+    FilteredTreeView := FTree;
     ButtonWidth := 0;
   end;
 

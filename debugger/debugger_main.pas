@@ -7,7 +7,7 @@ interface
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
   ComCtrls, PairSplitter, Menus, SynHighlighterPas,
-  lptypes, lpt_editor, lpt_AutoComplete, lpt_codeview;
+  lptypes, lpt_editor, lpt_autocomplete, lpt_codeview, lpt_parameterhint;
 
 type
   TDebugForm = class(TForm)
@@ -56,6 +56,7 @@ end;
 procedure TDebugForm.DoCreate(Sender: TObject);
 var
   AutoComplete: TLapeTools_AutoComplete;
+  ParameterHint: TLapeTools_ParameterHint;
 begin
   Editor := TLapeTools_Editor.Create(Self);
   with Editor do
@@ -78,6 +79,9 @@ begin
 
   AutoComplete := TLapeTools_AutoComplete.Create(Self);
   AutoComplete.Editor := Editor;
+
+  ParameterHint := TLapeTools_ParameterHint.Create(Self);
+  ParameterHint.Editor := Editor;
 end;
 
 procedure TDebugForm.DoParse(Sender: TObject);

@@ -916,7 +916,6 @@ begin
         Declaration := nil;
     end;
   end;
-  WriteLn(Length(Result));
 end;
 
 constructor TDeclaration_Type_Copy.Create(Parser: TLapeTools_Parser);

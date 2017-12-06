@@ -118,6 +118,7 @@ type
     FEndPos: TPoint;
     FExpression: String;
 
+    procedure DoApplicationLostFocus(Sender: TObject);
     procedure DoCommandProcessor(var Command: TSynEditorCommand; Char: TUTF8Char);
     procedure DoKeyPress(Sender: TObject; var Key: Char);
     procedure DoKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -469,10 +470,13 @@ end;
 
 procedure TLapeTools_AutoComplete_Tree.DoChanging(Sender: TObject; Node: TTreeNode; var AllowChange: Boolean);
 begin
-  FAutoComplete.Popup.Visible := False;
+  if (not (csDestroying in ComponentState)) then
+  begin
+    FAutoComplete.Popup.Visible := False;
 
-  if (Node <> nil) then
-    Node.Collapse(True);
+    if (Node <> nil) then
+      Node.Collapse(True);
+  end;
 end;
 
 procedure TLapeTools_AutoComplete_Tree.DoDrawItem(Sender: TCustomTreeView; Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage; var PaintImages, DefaultDraw: Boolean);
@@ -776,6 +780,14 @@ begin
   end;
 end;
 
+procedure TLapeTools_AutoComplete.DoApplicationLostFocus(Sender: TObject);
+begin
+  if FPopup.Showing then
+    FPopup.Hide();
+  if FForm.Showing then
+    FForm.Hide();
+end;
+
 procedure TLapeTools_AutoComplete.DoCommandProcessor(var Command: TSynEditorCommand; Char: TUTF8Char);
 begin
   case Command of
@@ -839,7 +851,7 @@ constructor TLapeTools_AutoComplete.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 
-  FForm := TLapeTools_AutoComplete_Form.Create(nil);
+  FForm := TLapeTools_AutoComplete_Form.Create(Self);
   with FForm do
   begin
     OnKeyPress := @Self.DoKeyPress;
@@ -856,13 +868,15 @@ begin
     AutoComplete := Self;
   end;
 
-  FPopup := TLapeTools_AutoComplete_Popup.Create(nil);
+  FPopup := TLapeTools_AutoComplete_Popup.Create(Self);
   with FPopup do
   begin
     AutoSize := True;
     BorderStyle := bsNone;
     AutoComplete := Self;
   end;
+
+  Application.AddOnDeactivateHandler(@DoApplicationLostFocus);
 end;
 
 destructor TLapeTools_AutoComplete.Destroy;
@@ -870,8 +884,7 @@ begin
   if (FParser <> nil) then
     FParser.Free();
 
-  FForm.Free();
-  FPopup.Free();
+  Application.RemoveOnDeactivateHandler(@DoApplicationLostFocus);
 
   inherited Destroy();
 end;

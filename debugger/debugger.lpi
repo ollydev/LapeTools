@@ -45,7 +45,7 @@
         <PackageName Value="LCL"/>
       </Item4>
     </RequiredPackages>
-    <Units Count="9">
+    <Units Count="10">
       <Unit0>
         <Filename Value="debugger.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -85,6 +85,10 @@
         <Filename Value="..\lpt_codeview.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="..\lpt_parameterhint.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit9>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
