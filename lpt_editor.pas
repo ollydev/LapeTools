@@ -320,15 +320,20 @@ end;
 
 function TLapeTools_Editor.GetExpression(var StartXY, EndXY: TPoint): String;
 begin
-  while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
-    Inc(EndXY.X);
+  Result := '';
 
-  StartXY := Scan(StartXY, @__GetExpression);
+  if (Trim(TextBetweenPoints[Point(EndXY.X - 1, EndXY.Y), EndXY]) <> '') then
+  begin
+    while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
+      Inc(EndXY.X);
 
-  Result := TextBetweenPoints[StartXY, EndXY];
+    StartXY := Scan(StartXY, @__GetExpression);
 
-  if (Pos('.', Result) > 0) then
-    StartXY := Scan(EndXY, @__GetExpressionEx);
+    Result := TextBetweenPoints[StartXY, EndXY];
+
+    if (Pos('.', Result) > 0) then
+      StartXY := Scan(EndXY, @__GetExpressionEx);
+  end;
 end;
 
 function TLapeTools_Editor.GetExpression: String;
