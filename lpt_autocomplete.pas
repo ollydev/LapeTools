@@ -814,6 +814,16 @@ begin
         if FForm.Visible then
           FForm.Visible := False;
       end;
+    lecCaretChange:
+      begin
+        if (FEditor.CaretX < FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) and (FEditor.CaretChar in [#0, #32, #46]) then
+        begin
+          if FPopup.Visible then
+            FPopup.Visible := False;
+          if FForm.Visible then
+            FForm.Visible := False;
+        end;
+      end;
   end;
 end;
 

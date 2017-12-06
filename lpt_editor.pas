@@ -35,6 +35,7 @@ type
     function GetChangeStamp: Int64;
     function GetScript: String;
     function GetCaret: Int32;
+    function GetCaretChar: Char;
 
     procedure DoMouseLink(Sender: TObject; X, Y: Integer; var AllowMouseLink: Boolean);
     procedure DoClickLink(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -48,6 +49,7 @@ type
     property InternalIncludes: TStringList read FInternalIncludes;
     property Script: String read GetScript;
     property Caret: Int32 read GetCaret;
+    property CaretChar: Char read GetCaretChar;
 
     procedure WndProc(var Msg: TLMessage); override;
 
@@ -158,6 +160,14 @@ end;
 function TLapeTools_Editor.GetCaret: Int32;
 begin
   Result := SelStart;
+end;
+
+function TLapeTools_Editor.GetCaretChar: Char;
+begin
+  if (TextBetweenPoints[Point(CaretX - 1, CaretY), CaretXY] <> '') then
+    Result := TextBetweenPoints[Point(CaretX - 1, CaretY), CaretXY][1]
+  else
+    Result := #0;
 end;
 
 procedure TLapeTools_Editor.DoMouseLink(Sender: TObject; X, Y: Integer; var AllowMouseLink: Boolean);
@@ -322,7 +332,7 @@ function TLapeTools_Editor.GetExpression(var StartXY, EndXY: TPoint): String;
 begin
   Result := '';
 
-  if (Trim(TextBetweenPoints[Point(EndXY.X - 1, EndXY.Y), EndXY]) <> '') then
+  if (not (CaretChar in [#0, #32])) then
   begin
     while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
       Inc(EndXY.X);
