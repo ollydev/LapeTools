@@ -107,12 +107,13 @@ begin
   end;
 
   FUpdater := TLapeTools_CodeView_Updater.Create(Self);
-  FUpdater.FreeOnTerminate := True;
 end;
 
 destructor TLapeTools_CodeView.Destroy;
 begin
   FUpdater.Terminate();
+  FUpdater.WaitFor();
+  FUpdater.Free();
 
   inherited Destroy();
 end;

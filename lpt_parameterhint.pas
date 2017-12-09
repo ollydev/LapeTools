@@ -11,25 +11,34 @@ uses
 type
   TLapeTools_ParameterHint = class;
 
+  TLapeTools_ParameterHint_Method = class
+  protected
+    FName: String;
+    FResult: String;
+    FParameters: array of array of TDeclaration_Parameter;
+  public
+    function Draw(Canvas: TCanvas; X, Y, Current: Int32): Int32;
+    function Measure(Canvas: TCanvas): Int32;
+
+    constructor Create(Header: TDeclaration_MethodHeader);
+  end;
+  TLapeTools_ParameterHint_Methods = array of TLapeTools_ParameterHint_Method;
+
   TLapeTools_ParameterHint_Form = class(THintWindow)
   protected
-    FBuffer: TBitmap;
-    FParameterHint: TLapeTools_ParameterHint;
-    FMethods: TDeclaration_Methods;
+    FMethods: TLapeTools_ParameterHint_Methods;
     FIndex: Int32;
-
-    procedure TextOut(var X, Y: Int32; AText: String; AColor: Int32 = clBlack; AStyle: TFontStyles = []);
-
-    function DrawMethod(X, Y: Int32; Method: TDeclaration_Method): Int32;
   public
-    property ParameterHint: TLapeTools_ParameterHint read FParameterHint write FParameterHint;
     property Index: Int32 read FIndex write FIndex;
 
+    procedure EraseBackground(DC: HDC); override;
     procedure Paint; override;
-    procedure Show(X, Y: Int32; Methods: TDeclaration_Methods); overload;
+    procedure Show;
 
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
+    procedure Clear;
+
+    procedure Add(Header: TDeclaration_MethodHeader); overload;
+    procedure Add(Methods: TDeclaration_Methods); overload;
   end;
 
   TLapeTools_ParameterHint = class(TComponent)
@@ -59,237 +68,230 @@ implementation
 uses
   lpparser;
 
-procedure TLapeTools_ParameterHint_Form.TextOut(var X, Y: Int32; AText: String; AColor: Int32; AStyle: TFontStyles);
-begin
-  with FBuffer do
+function TLapeTools_ParameterHint_Method.Draw(Canvas: TCanvas; X, Y, Current: Int32): Int32;
+
+  procedure DrawText(Text: String; Bold: Boolean = False);
   begin
-    Canvas.Font.Color := AColor;
-    Canvas.Font.Style := AStyle;
-    Canvas.TextOut(X, Y, AText);
+    with Canvas do
+    begin
+      Font.Color := clBlack;
+      Font.Bold := Bold;
 
-    X := X + Canvas.TextWidth(AText);
-    if (fsBold in AStyle) then
-      X := X + 1;
-  end;
-end;
+      TextOut(X, Y, Text);
 
-function TLapeTools_ParameterHint_Form.DrawMethod(X, Y: Int32; Method: TDeclaration_Method): Int32;
-type
-  TParameterGroups = array of array of TDeclaration_Parameter;
-
-  function GroupParameters: TParameterGroups;
-  var
-    i: Int32;
-    Groups: TParameterGroups absolute Result;
-  begin
-    SetLength(Groups, 0);
-
-    with Method.Header do
-      for i := 0 to Parameters.Count - 1 do
-      begin
-        if (i = 0) or (Parameters.Get(i).Group <> Parameters.Get(i - 1).Group) then
-          SetLength(Groups, Length(Groups) + 1);
-
-        SetLength(Groups[High(Groups)], Length(Groups[High(Groups)]) + 1);
-        Groups[High(Groups)][High(Groups[High(Groups)])] := Parameters.Get(i);
-      end;
+      X := X + TextWidth(Text);
+      if Bold then
+        X := X + 1;
+    end;
   end;
 
 var
-  Parameters: TParameterGroups;
   i, j, h: Int32;
-  Style: TFontStyles;
+  Bold: Boolean;
 begin
-  Parameters := GroupParameters();
+  Result := X;
 
-  X := BorderWidth;
+  DrawText(FName);
+  DrawText('(');
 
-  TextOut(X, Y, Method.Header.Name.Text, clBlack);
-  TextOut(X, Y, '(', clBlack);
-
-  for i := 0 to High(Parameters) do
+  for i := 0 to High(FParameters) do
   begin
-    h := High(Parameters[i]);
+    h := High(FParameters[i]);
+    Bold := (Current >= i) and (Current <= i + h);
 
-    if (Index >= i) and (Index <= i + h) then
-      Style := [fsBold]
-    else
-      Style := [];
-
-    case Parameters[i][0].Modifier of
-      pmConst: TextOut(X, Y, 'const ', clBlack, Style);
-      pmConstRef: TextOut(X, Y, 'const ', clBlack, Style);
-      pmVar: TextOut(X, Y, 'var ', clBlack, Style);
-      pmOut: TextOut(X, Y, 'out ', clBlack, Style);
+    case FParameters[i][0].Modifier of
+      pmConst: DrawText('const ', Bold);
+      pmConstRef: DrawText('const ', Bold);
+      pmVar: DrawText('var ', Bold);
+      pmOut: DrawText('out ', Bold);
     end;
 
     for j := 0 to h do
     begin
-      if (i + j = Index) then
-        TextOut(X, Y, Parameters[i][j].Name.Text, clBlack, [fsBold])
+      if (i + j = Current) then
+        DrawText(FParameters[i][j].Name.Text, True)
       else
-        TextOut(X, Y, Parameters[i][j].Name.Text);
+        DrawText(FParameters[i][j].Name.Text);
 
       if (j < h) then
-        TextOut(X, Y, ', ');
+        DrawText(', ');
     end;
 
-    if (Parameters[i][0].VarType <> nil) then
+    if (FParameters[i][0].VarType <> nil) then
     begin
-      TextOut(X, Y, ': ');
-      TextOut(X, Y, Parameters[i][0].VarType.Text, clBlack, Style)
+      DrawText(': ');
+      DrawText(FParameters[i][0].VarType.Text, Bold)
     end;
 
-    if (Parameters[i][0].Value <> nil) then
+    if (FParameters[i][0].Value <> nil) then
     begin
-      TextOut(X, Y, ' = ');
-      TextOut(X, Y, Parameters[i][0].Value.Text, clBlack, Style);
+      DrawText(' = ');
+      DrawText(FParameters[i][0].Value.Text, Bold);
     end;
 
-    if (i < High(Parameters)) then
-      TextOut(X, Y, '; ');
+    if (i < High(FParameters)) then
+      DrawText('; ');
   end;
 
-  TextOut(X, Y, ')');
+  DrawText(')');
 
-  if (Method.Header.MethodType in [mtFunction, mtFunctionOfObject]) then
-    TextOut(X, Y, ': ' + Method.Header.Result.Text);
+  if (FResult <> '') then
+    DrawText(': ' + FResult);
 
-  Result := X + BorderWidth;
+  Result := X - Result;
+end;
+
+function TLapeTools_ParameterHint_Method.Measure(Canvas: TCanvas): Int32;
+begin
+  Result := Draw(Canvas, 0, 0, -1) + 15;
+end;
+
+constructor TLapeTools_ParameterHint_Method.Create(Header: TDeclaration_MethodHeader);
+var
+  i: Int32;
+begin
+  if (Header.Name <> nil) then
+    FName := Header.Name.Text;
+  if (Header.Result <> nil) then
+    FResult := Header.Result.Text;
+
+  with Header do
+    for i := 0 to Parameters.Count - 1 do
+    begin
+      if (i = 0) or (Parameters.Get(i).Group <> Parameters.Get(i - 1).Group) then
+        SetLength(FParameters, Length(FParameters) + 1);
+
+      SetLength(FParameters[High(FParameters)], Length(FParameters[High(FParameters)]) + 1);
+      FParameters[High(FParameters)][High(FParameters[High(FParameters)])] := Parameters.Get(i);
+    end;
+end;
+
+procedure TLapeTools_ParameterHint_Form.Clear;
+begin
+  while Length(FMethods) > 0 do
+  begin
+    FMethods[High(FMethods)].Free();
+
+    SetLength(FMethods, Length(FMethods) - 1);
+  end;
+end;
+
+procedure TLapeTools_ParameterHint_Form.Add(Header: TDeclaration_MethodHeader);
+begin
+  SetLength(FMethods, Length(FMethods) + 1);
+  FMethods[High(FMethods)] := TLapeTools_ParameterHint_Method.Create(Header);
+end;
+
+procedure TLapeTools_ParameterHint_Form.Add(Methods: TDeclaration_Methods);
+var
+  i: Int32;
+begin
+  for i := 0 to High(Methods) do
+    Add(Methods[i].Header);
+end;
+
+procedure TLapeTools_ParameterHint_Form.EraseBackground(DC: HDC);
+begin
+  { nothing }
 end;
 
 procedure TLapeTools_ParameterHint_Form.Paint;
 var
-  Y, i: Int32;
+  i: Int32;
 begin
-  FBuffer.SetSize(Width, Height);
-
-  with FBuffer do
-  begin
-    Canvas.Pen.Color := clBlack;
-    Canvas.Brush.Color := $F0F0F0;
-    Canvas.Rectangle(ClientRect);
-  end;
+  Canvas.Pen.Color := clBlack;
+  Canvas.Brush.Color := $F0F0F0;
+  Canvas.Rectangle(ClientRect);
 
   for i := 0 to High(FMethods) do
-    DrawMethod(BorderWidth, ((i * FParameterHint.Editor.LineHeight) + BorderWidth) - 1, FMethods[i]);
-
-  Canvas.Draw(0, 0, FBuffer);
+    FMethods[i].Draw(Canvas, BorderWidth, ((i * Canvas.TextHeight('TaylorSwift')) + BorderWidth) - 1, FIndex);
 end;
 
-procedure TLapeTools_ParameterHint_Form.Show(X, Y: Int32; Methods: TDeclaration_Methods);
+procedure TLapeTools_ParameterHint_Form.Show;
 var
   i: Int32;
 begin
-  FBuffer.Canvas.Font := Font;
-  FMethods := Methods;
-  FIndex := -1;
-
   if (Length(FMethods) > 0) then
   begin
-    Height := (Length(FMethods) * FParameterHint.Editor.LineHeight) + (BorderWidth * 2);
-    Width := DrawMethod(0, 0, FMethods[0]) + 10;
+    Height := (Length(FMethods) * Canvas.TextHeight('TaylorSwift')) + (BorderWidth * 2);
+    Width := 0;
 
-    for i := 1 to High(FMethods) do
-      if (DrawMethod(0, 0, FMethods[i]) > Width) then
-        Width := DrawMethod(0, 0, FMethods[i]) + 10;
+    for i := 0 to High(FMethods) do
+      if (FMethods[i].Measure(Canvas) > Width) then
+        Width := FMethods[i].Measure(Canvas);
 
-    Left := X;
-    Top := Y - Height;
+    Width := Width + (BorderWidth * 2);
+    Top := Top - Height;
 
-    Show();
-  end else
-    Hide();
-end;
-
-constructor TLapeTools_ParameterHint_Form.Create(AOwner: TComponent);
-begin
-  inherited Create(AOwner);
-
-  FBuffer := TBitmap.Create();
-end;
-
-destructor TLapeTools_ParameterHint_Form.Destroy;
-begin
-  FBuffer.Free();
-
-  inherited Destroy();
+    inherited Show();
+  end;
 end;
 
 procedure TLapeTools_ParameterHint.DoApplicationLostFocus(Sender: TObject);
 begin
-  if FForm.Showing then
-    FForm.Hide();
+  FForm.Hide();
 end;
 
 procedure TLapeTools_ParameterHint.DoCommandProcessor(var Command: TSynEditorCommand; Char: TUTF8Char);
 
-  function GetParameterIndex: Int32;
-  var
-    Tokenizer: TLapeTokenizerString;
-    Lock: Int32 = 0;
+  function Changed: Boolean;
   begin
-    Result := 0;
+    Result := FForm.Visible and ((FEditor.GetParameterStart().X <> FEndPos.X) or (FEditor.GetParameterStart().Y <> FEndPos.Y));
+  end;
 
-    if (FEditor.TextBetweenPoints[FEndPos, Point(FEndPos.X + 1, FEndPos.Y)] = '(') and
-       (FEditor.TextBetweenPoints[Point(Editor.CaretX - 1, Editor.CaretY), Editor.CaretXY] <> ')') then
+  procedure Update;
+  begin
+    if FForm.Visible then
     begin
-      Tokenizer := TLapeTokenizerString.Create(FEditor.TextBetweenPoints[Point(FEndPos.X + 1, FEndPos.Y), Editor.CaretXY]);
+      FForm.Index := FEditor.GetParameterIndex(FEndPos);
 
-      try
-        Tokenizer.NextNoJunk();
+      if (FForm.Index >= 0) then
+        FForm.Paint()
+      else
+        FForm.Hide();
+    end;
+  end;
 
-        while (Tokenizer.Tok <> tk_NULL) do
-        begin
-          case Tokenizer.Tok of
-            tk_sym_BracketOpen, tk_sym_ParenthesisOpen:
-              Lock := Lock + 1;
-            tk_sym_BracketClose, tk_sym_ParenthesisClose:
-              Lock := Lock - 1;
-            tk_sym_Comma:
-              if (Lock = 0) then
-                Result := Result + 1;
-          end;
+  procedure Show;
+  begin
+    if (FParser <> nil) then
+      FParser.Free();
 
-          Tokenizer.NextNoJunk();
-        end;
-      except
-        { nothing }
-      end;
+    FParser := FEditor.GetParser(True);
+    FStartPos := FEditor.GetParameterStart();
+    FStartPos.X := FStartPos.X - 1;
+    FEndPos := FStartPos;
+    FExpression := FEditor.GetExpression(FStartPos, FEndPos);
 
-      Tokenizer.Free();
-    end else
-      Result := -1;
+    if (FExpression <> '') then
+      with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
+        Execute(X, Y);
+
+    Update();
+  end;
+
+  procedure Hide;
+  begin
+    FForm.Hide();
   end;
 
 begin
   case Command of
+    lecEscape:
+      Hide();
+
+    lecCaretChange:
+      if Changed() then
+        Show()
+      else
+        Update();
+
     lecParameterHint:
-      begin
-        if FForm.Showing then
-          FForm.Hide()
-        else
-        begin
-          if (FParser <> nil) then
-            FParser.Free();
-
-          FParser := FEditor.GetParser(True);
-          FStartPos := FEditor.GetParameterStart();
-          FStartPos.X := FStartPos.X - 1;
-          FEndPos := FStartPos;
-          FExpression := FEditor.GetExpression(FStartPos, FEndPos);
-
-          with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
-            Execute(X - FForm.BorderWidth, Y);
-
-          FForm.Index := GetParameterIndex();
-          FForm.Paint();
-        end;
-      end;
+      Show();
 
     lecFocusLost:
       if (GetParentForm(FEditor).ActiveControl <> FEditor) then
-        FForm.Hide();
+        Hide();
 
     lecScroll:
       if FForm.Showing then
@@ -299,20 +301,10 @@ begin
           with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
           begin
             FForm.Left := X - FForm.BorderWidth;
-            FForm.Top := Y;
+            FForm.Top := Y - FForm.Height;
           end;
         end else
-          FForm.Hide();
-      end;
-
-    lecCaretChange, ecChar:
-      begin
-        FForm.Index := GetParameterIndex();
-
-        if (FForm.Index >= 0) then
-          FForm.Paint()
-        else
-          FForm.Hide();
+          Hide();
       end;
   end;
 end;
@@ -326,26 +318,35 @@ end;
 procedure TLapeTools_ParameterHint.Execute(X, Y: Int32);
 var
   Declaration: TDeclaration;
+  Method: TDeclaration_Method;
 begin
   if (not FForm.Font.IsEqual(FEditor.Font)) then
     FForm.Font := FEditor.Font;
+  FForm.Clear();
 
   if (Pos('.', FExpression) > 0) then
     Declaration := FParser.ParseExpression(FExpression)
   else
     Declaration := FParser.Find(FExpression);
 
-  if (Declaration <> nil) and (Declaration is TDeclaration_Method) then
+  if (Declaration <> nil) then
   begin
-    with Declaration as TDeclaration_Method do
-      case Header.MethodType of
-        mtProcedure, mtFunction:
-          FForm.Show(X, Y, FParser.Map.GetMethods(Header.Name.Text));
-        mtProcedureOfObject, mtFunctionOfObject:
-          FForm.Show(X, Y, FParser.Map.GetMethods(Header.ObjectName.Text + '.' + Header.Name.Text));
-      end;
-  end else
-    FForm.Hide();
+    if (Declaration is TDeclaration_Method) then
+    begin
+      Method := Declaration as TDeclaration_Method;
+
+      if Method.Header.MethodType in [mtProcedureOfObject, mtFunctionOfObject] then
+        FForm.Add(FParser.Map.GetMethods(Method.Header.ObjectName.Text + '.' + Method.Header.Name.Text))
+      else
+        FForm.Add(FParser.Map.GetMethods(Method.Header.Name.Text))
+    end else
+    if (Declaration is TDeclaration_Type_Method) then
+      FForm.Add(TDeclaration_Type_Method(Declaration).Header)
+  end;
+
+  FForm.Left := X;
+  FForm.Top := Y;
+  FForm.Show();
 
   if FEditor.CanFocus() then
     FEditor.SetFocus();
@@ -357,8 +358,8 @@ begin
 
   FForm := TLapeTools_ParameterHint_Form.Create(Self);
   FForm.ShowInTaskBar := stNever;
-  FForm.BorderWidth := 2;
-  FForm.ParameterHint := Self;
+  FForm.BorderWidth := 3;
+  FForm.DoubleBuffered := True;
 
   Application.AddOnDeactivateHandler(@DoApplicationLostFocus);
 end;
@@ -367,6 +368,8 @@ destructor TLapeTools_ParameterHint.Destroy;
 begin
   if (FParser <> nil) then
     FParser.Free();
+
+  FForm.Clear();
 
   Application.RemoveOnDeactivateHandler(@DoApplicationLostFocus);
 

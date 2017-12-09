@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cmem, cthreads,
   {$ENDIF}{$ENDIF}
-  Interfaces, Forms, lazcontrols, SysUtils,
+  Interfaces, Forms, SysUtils,
   debugger_main;
 
 {$R *.res}

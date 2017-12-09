@@ -98,6 +98,8 @@ type
     FAutoComplete: TLapeTools_AutoComplete;
     FTree: TLapeTools_AutoComplete_Tree;
     FSizeDrag: TLapeTools_AutoComplete_SizeDrag;
+
+    procedure DoHide; override;
   public
     property Tree: TLapeTools_AutoComplete_Tree read FTree;
     property AutoComplete: TLapeTools_AutoComplete read FAutoComplete write FAutoComplete;
@@ -265,10 +267,7 @@ end;
 procedure TLapeTools_AutoComplete_Popup.DoHide;
 begin
   if FAutoComplete.Form.CanFocus() then
-  begin
     FAutoComplete.Form.SetFocus();
-    FAutoComplete.Form.ActiveControl := FAutoComplete.Tree;
-  end;
 
   FTimer.Enabled := False;
 end;
@@ -292,13 +291,7 @@ begin
   if (FAutoComplete.Editor.OnShowDeclaration <> nil) then
   begin
     FAutoComplete.Editor.OnShowDeclaration(FDeclaration.DocPos.Line, FDeclaration.DocPos.Col, FDeclaration.DocPos.FileName);
-
-    with FAutoComplete do
-    begin
-      Hide();
-      if Editor.CanFocus() then
-        Editor.SetFocus();
-    end;
+    FAutoComplete.Form.Hide();
   end;
 end;
 
@@ -306,7 +299,10 @@ procedure TLapeTools_AutoComplete_Popup.DoKeyDown(Sender: TObject; var Key: Word
 begin
   Hide();
 
-  FAutoComplete.Tree.KeyDown(Key, Shift);
+  if (Key = VK_ESCAPE) then
+    FAutoComplete.Form.KeyDown(Key, Shift)
+  else
+    FAutoComplete.Tree.KeyDown(Key, Shift);
 end;
 
 procedure TLapeTools_AutoComplete_Popup.DoKeyPress(Sender: TObject; var Key: Char);
@@ -575,6 +571,14 @@ begin
   OnChange := @DoChange;
 end;
 
+procedure TLapeTools_AutoComplete_Form.DoHide;
+begin
+  FAutoComplete.Popup.Hide();
+
+  if FAutoComplete.Editor.CanFocus() then
+    FAutoComplete.Editor.SetFocus();
+end;
+
 procedure TLapeTools_AutoComplete_Form.Paint;
 begin
   Canvas.Brush.Color := clForm;
@@ -625,12 +629,7 @@ begin
         FEditor.CommandProcessor(ecChar, Key, nil);
 
         if (not (Key in FEditor.IdentChars)) then
-        begin
           FForm.Hide();
-
-          if FEditor.CanFocus() then
-            FEditor.SetFocus();
-        end;
       end;
     #8:
       FEditor.CommandProcessor(ecDeleteLastChar, #0, nil);
@@ -641,11 +640,20 @@ end;
 
 procedure TLapeTools_AutoComplete.DoKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
-  if (Key = VK_RETURN) then
-  begin
-    Insert(nil);
+  case Key of
+    VK_RETURN:
+      begin
+        Insert(nil);
 
-    Key := VK_UNKNOWN;
+        Key := VK_UNKNOWN;
+      end;
+
+    VK_ESCAPE:
+      begin
+        FForm.Hide();
+
+        Key := VK_UNKNOWN;
+      end;
   end;
 end;
 
@@ -782,10 +790,7 @@ end;
 
 procedure TLapeTools_AutoComplete.DoApplicationLostFocus(Sender: TObject);
 begin
-  if FPopup.Showing then
-    FPopup.Hide();
-  if FForm.Showing then
-    FForm.Hide();
+  FForm.Hide();
 end;
 
 procedure TLapeTools_AutoComplete.DoCommandProcessor(var Command: TSynEditorCommand; Char: TUTF8Char);
@@ -807,6 +812,7 @@ begin
         with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
           Execute(X, Y + FEditor.LineHeight);
       end;
+
     lecFocus:
       begin
         if FPopup.Visible then
@@ -814,9 +820,10 @@ begin
         if FForm.Visible then
           FForm.Visible := False;
       end;
+
     lecCaretChange:
       begin
-        if (FEditor.CaretX < FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) and (FEditor.CaretChar in [#0, #32, #46]) then
+        if (FEditor.CaretX < FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) and (FEditor.CaretChar in [#0, #32, '.']) then
         begin
           if FPopup.Visible then
             FPopup.Visible := False;
@@ -833,9 +840,6 @@ begin
     FEditor.TextBetweenPointsEx[FStartPos, FEditor.CaretXY, scamEnd] := FTree.Selected.Text;
 
   FForm.Hide();
-
-  if FEditor.CanFocus() then
-    FEditor.SetFocus();
 end;
 
 procedure TLapeTools_AutoComplete.SetEditor(Value: TLapeTools_Editor);

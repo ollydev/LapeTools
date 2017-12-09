@@ -5,5 +5,5 @@
  **)
 procedure test(constref x);
 begin
-  FindColorsTolerance
+  srl.FindColors();
 end;

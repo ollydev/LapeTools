@@ -15,12 +15,13 @@ const
   lecFocus = ecUserFirst + 4;
   lecCaretChange = ecUserFirst + 5;
   lecScroll = ecUserFirst + 6;
+  lecEscape = ecUserFirst + 7;
 
 type
   TLapeTools_ShowDeclaration = procedure(Line, Column: Int32; FilePath: String) of object;
   TLapeTools_CommandProcessor = procedure(var Command: TSynEditorCommand; Char: TUTF8Char) of object;
   TLapeTools_CommandProcessors = array of TLapeTools_CommandProcessor;
-  TLapeTools_ScanCallback = function(Char: String; var Inside: Int32): Boolean;
+  TLapeTools_ScanCallback = function(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 
   TLapeTools_Editor = class(TSynEdit)
   protected
@@ -30,7 +31,8 @@ type
     FOnShowDeclaration: TLapeTools_ShowDeclaration;
     FCommandProcessors: TLapeTools_CommandProcessors;
 
-    function Scan(XY: TPoint; Callback: TLapeTools_ScanCallback): TPoint;
+    function Scan(XY: TPoint; StopXY: TPoint; Callback: TLapeTools_ScanCallback; Data: Pointer = nil): TPoint; overload;
+    function Scan(XY: TPoint; Callback: TLapeTools_ScanCallback; Data: Pointer = nil): TPoint; overload;
 
     function GetChangeStamp: Int64;
     function GetScript: String;
@@ -68,6 +70,7 @@ type
     function GetExpression(var StartXY, EndXY: TPoint): String; overload;
     function GetExpression: String; overload;
     function GetParameterStart: TPoint;
+    function GetParameterIndex(StartXY: TPoint): Int32;
 
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -104,7 +107,7 @@ begin
   end;
 end;
 
-function TLapeTools_Editor.Scan(XY: TPoint; Callback: TLapeTools_ScanCallback): TPoint;
+function TLapeTools_Editor.Scan(XY: TPoint; StopXY: TPoint; Callback: TLapeTools_ScanCallback; Data: Pointer): TPoint;
 
   function IsJunk(XY: TPoint): Boolean;
   var
@@ -125,6 +128,8 @@ var
   Inside: Int32 = 0;
 begin
   Line := Copy(Lines[XY.Y - 1], 1, XY.X);
+  if (XY.X > Length(Line) + 1) then
+    Exit(XY);
 
   while (XY.Y > 0) do
   begin
@@ -132,19 +137,26 @@ begin
 
     while (XY.X > 0) do
     begin
-      if (not IsJunk(Point(XY.X - 1, XY.Y))) and (not Callback(TextBetweenPoints[Point(XY.X - 1, XY.Y), XY], Inside)) then
+      if (XY.X = StopXY.X) and (XY.Y = StopXY.Y) then
+        Exit(XY);
+      if (not IsJunk(Point(XY.X - 1, XY.Y))) and (not Callback(TextBetweenPoints[Point(XY.X - 1, XY.Y), XY], Inside, Data)) then
         Exit(XY);
 
       Dec(XY.X);
     end;
 
-    if (not Callback(#10, Inside)) then
+    if (not Callback(#10, Inside, Data)) then
       Exit(XY);
 
     Dec(XY.Y);
     if (XY.Y > 0) then
       Line := Lines[XY.Y - 1];
   end;
+end;
+
+function TLapeTools_Editor.Scan(XY: TPoint; Callback: TLapeTools_ScanCallback; Data: Pointer): TPoint;
+begin
+  Result := Scan(XY, Point(0, 0), Callback, Data);
 end;
 
 function TLapeTools_Editor.GetChangeStamp: Int64;
@@ -214,8 +226,8 @@ procedure TLapeTools_Editor.CommandProcessor(Command: TSynEditorCommand; Char: T
     if GetHighlighterAttriAtRowCol(Point(CaretX - 1, CaretY), Token, Attri) then
     begin
       if (Attri.Name = SYNS_AttrComment) or (Attri.Name = SYNS_AttrString) or
-         (Attri.Name = SYNS_AttrDirective) or (Attri.Name = SYNS_AttrNumber) then
-        Exit(True);
+         (Attri.Name = SYNS_AttrDirective) or ((Attri.Name = SYNS_AttrNumber) and (Char = '.')) then
+          Exit(True);
     end;
 
     Exit(False);
@@ -308,42 +320,42 @@ begin
     SelectWord();
 end;
 
-function __GetExpression(Char: String; var Inside: Int32): Boolean;
+function __GetExpression(Char: String; var Inside: Int32; Data: Pointer): Boolean;
+const
+  ExpectedChars = ['_', '0'..'9', 'A'..'Z', 'a'..'z', '[', ']', '(', ')', '.', #32, #10];
 begin
-  case Char of
-    '[', '(':
-      Inside := Inside + 1;
-    ']', ')':
-      Inside := Inside - 1;
-    #32, #10:
-      if (Inside = 0) then
-        Exit(False);
-  end;
+  Result := (Char <> '') and ((Char[1] in ExpectedChars) or (Inside > 0));
 
-  Exit(True);
+  if Result then
+  begin
+    if (Char[1] in ['(', #32, #10]) and (Inside = 0) then
+      Exit(False);
+
+    case Char[1] of
+      ']': Inside := Inside + 1;
+      '[': Inside := Inside - 1;
+      ')': Inside := Inside + 1;
+      '(': Inside := Inside - 1;
+    end;
+  end;
 end;
 
-function __GetExpressionEx(Char: String; var Inside: Int32): Boolean;
+function __GetExpressionEx(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 begin
   Result := not (Char = '.');
 end;
 
 function TLapeTools_Editor.GetExpression(var StartXY, EndXY: TPoint): String;
 begin
-  Result := '';
+  while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
+    Inc(EndXY.X);
 
-  if (not (CaretChar in [#0, #32])) then
-  begin
-    while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
-      Inc(EndXY.X);
+  StartXY := Scan(StartXY, @__GetExpression);
 
-    StartXY := Scan(StartXY, @__GetExpression);
+  Result := TextBetweenPoints[StartXY, EndXY];
 
-    Result := TextBetweenPoints[StartXY, EndXY];
-
-    if (Pos('.', Result) > 0) then
-      StartXY := Scan(EndXY, @__GetExpressionEx);
-  end;
+  if (Pos('.', Result) > 0) then
+    StartXY := Scan(EndXY, @__GetExpressionEx);
 end;
 
 function TLapeTools_Editor.GetExpression: String;
@@ -356,7 +368,7 @@ begin
   Result := GetExpression(StartXY, EndXY);
 end;
 
-function __GetParameterStart(Char: String; var Inside: Int32): Boolean;
+function __GetParameterStart(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 begin
   case Char of
     ')', ']':
@@ -375,8 +387,55 @@ end;
 
 function TLapeTools_Editor.GetParameterStart: TPoint;
 begin
-  Result := Scan(CaretXY, @__GetParameterStart);
+  Result := Scan(Point(CaretX - 1, CaretY), @__GetParameterStart);
   Result.X := Result.X - 1;
+end;
+
+function __GetParameterIndex(Char: String; var Inside: Int32; Data: Pointer): Boolean;
+begin
+  case Char of
+    ')', ']':
+      Inside := Inside + 1;
+    '(', '[':
+      Inside := Inside - 1;
+    ',':
+      if (Inside = 0) then
+        PInt32(Data)^ := PInt32(Data)^ + 1;
+  end;
+
+  Exit(True);
+end;
+
+function __GetParameterClose(Char: String; var Inside: Int32; Data: Pointer): Boolean;
+begin
+  case Char of
+    ')', ']':
+      PInt32(Data)^ := PInt32(Data)^ + 1;
+    '(', '[':
+      PInt32(Data)^ := PInt32(Data)^ - 1;
+  end;
+
+  Exit(True);
+end;
+
+function TLapeTools_Editor.GetParameterIndex(StartXY: TPoint): Int32;
+var
+  Close: Int32 = 0;
+begin
+  Result := 0;
+
+  if (TextBetweenPoints[StartXY, Point(StartXY.X + 1, StartXY.Y)] <> '(') then
+    Exit(-1);
+
+  if (TextBetweenPoints[Point(CaretX - 1, CaretY), CaretXY] = ')') then
+  begin
+    Scan(CaretXY, @__GetParameterClose, @Close);
+
+    if (Close = 0) then
+      Exit(-1);
+  end;
+
+  Scan(Point(CaretX - 1, CaretY), StartXY, @__GetParameterIndex, @Result);
 end;
 
 constructor TLapeTools_Editor.Create(AOwner: TComponent);
@@ -393,6 +452,13 @@ begin
 
   with GetCaretObj() do
     AddChangeHandler(@DoCaretChange);
+
+  with KeyStrokes.Add() do
+  begin
+    Key := VK_ESCAPE;
+    Shift := [];
+    Command := lecEscape;
+  end;
 
   with KeyStrokes.Add() do
   begin
