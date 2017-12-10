@@ -224,7 +224,8 @@ begin
     Top := Top - Height;
 
     inherited Show();
-  end;
+  end else
+    Hide();
 end;
 
 procedure TLapeTools_ParameterHint.DoApplicationLostFocus(Sender: TObject);
