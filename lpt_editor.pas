@@ -46,7 +46,7 @@ type
     property OnShowDeclaration: TLapeTools_ShowDeclaration read FOnShowDeclaration write FOnShowDeclaration;
 
     property ChangeStamp: Int64 read GetChangeStamp;
-    property FilePath: String read FFilePath;
+    property FilePath: String read FFilePath write FFilePath;
     property Paths: TStringList read FPaths;
     property InternalIncludes: TStringList read FInternalIncludes;
     property Script: String read GetScript;
