@@ -116,7 +116,7 @@ function TLapeTools_Editor.Scan(XY: TPoint; StopXY: TPoint; Callback: TLapeTools
   begin
     if GetHighlighterAttriAtRowCol(XY, Token, Attri) then
     begin
-      if (Attri.Name = SYNS_AttrComment) or (Attri.Name = SYNS_AttrDirective) then
+      if (Attri.Name = SYNS_AttrComment) or (Attri.Name = SYNS_AttrDirective) or (Attri.Name = SYNS_AttrString) then
         Exit(True);
     end;
 
@@ -156,7 +156,7 @@ end;
 
 function TLapeTools_Editor.Scan(XY: TPoint; Callback: TLapeTools_ScanCallback; Data: Pointer): TPoint;
 begin
-  Result := Scan(XY, Point(0, 0), Callback, Data);
+  Result := Scan(Point(XY.X - 1, XY.Y), Point(0, 0), Callback, Data);
 end;
 
 function TLapeTools_Editor.GetChangeStamp: Int64;
@@ -322,22 +322,24 @@ end;
 
 function __GetExpression(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 const
-  ExpectedChars = ['_', '0'..'9', 'A'..'Z', 'a'..'z', '[', ']', '(', ')', '.', #32, #10];
+  StringChars = ['_', '0'..'9', 'A'..'Z', 'a'..'z', '.', '('];
 begin
-  Result := (Char <> '') and ((Char[1] in ExpectedChars) or (Inside > 0));
+  if (Char = '') then
+    Exit(False);
 
-  if Result then
-  begin
-    if (Char[1] in ['(', #32, #10]) and (Inside = 0) then
-      Exit(False);
-
-    case Char[1] of
-      ']': Inside := Inside + 1;
-      '[': Inside := Inside - 1;
-      ')': Inside := Inside + 1;
-      '(': Inside := Inside - 1;
-    end;
+  case Char[1] of
+    ']': Inside := Inside + 1;
+    '[': Inside := Inside - 1;
+    ')': Inside := Inside + 1;
+    '(': Inside := Inside - 1;
   end;
+
+  if (Inside < 0) then
+    Exit(False);
+  if (Inside > 0) then
+    Exit(True);
+
+  Result := Char[1] in StringChars;
 end;
 
 function __GetExpressionEx(Char: String; var Inside: Int32; Data: Pointer): Boolean;
@@ -387,7 +389,7 @@ end;
 
 function TLapeTools_Editor.GetParameterStart: TPoint;
 begin
-  Result := Scan(Point(CaretX - 1, CaretY), @__GetParameterStart);
+  Result := Scan(CaretXY, @__GetParameterStart);
   Result.X := Result.X - 1;
 end;
 

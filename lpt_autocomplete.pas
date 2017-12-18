@@ -837,7 +837,7 @@ end;
 procedure TLapeTools_AutoComplete.Insert(Sender: TObject);
 begin
   if (FTree.Selected <> nil) then
-    FEditor.TextBetweenPointsEx[FStartPos, FEditor.CaretXY, scamEnd] := FTree.Selected.Text;
+    FEditor.TextBetweenPointsEx[FStartPos, Point(Max(FEndPos.X, FEditor.CaretX), FEndPos.Y), scamEnd] := FTree.Selected.Text;
 
   FForm.Hide();
 end;
