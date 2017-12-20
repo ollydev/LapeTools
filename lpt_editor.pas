@@ -322,7 +322,7 @@ end;
 
 function __GetExpression(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 const
-  StringChars = ['_', '0'..'9', 'A'..'Z', 'a'..'z', '.', '('];
+  StringChars = ['_', '0'..'9', 'A'..'Z', 'a'..'z', '.', '(', '['];
 begin
   if (Char = '') then
     Exit(False);
@@ -349,15 +349,20 @@ end;
 
 function TLapeTools_Editor.GetExpression(var StartXY, EndXY: TPoint): String;
 begin
-  while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
-    Inc(EndXY.X);
+  Result := '';
 
-  StartXY := Scan(StartXY, @__GetExpression);
+  if (TextBetweenPoints[Point(StartXY.X - 1, StartXY.Y), StartXY] <> #32) then
+  begin
+    while (EndXY.X > 0) and (EndXY.X <= Length(Lines[EndXY.Y - 1])) and (Lines[EndXY.Y - 1][EndXY.X] in IdentChars) do
+      Inc(EndXY.X);
 
-  Result := TextBetweenPoints[StartXY, EndXY];
+    StartXY := Scan(StartXY, @__GetExpression);
 
-  if (Pos('.', Result) > 0) then
-    StartXY := Scan(EndXY, @__GetExpressionEx);
+    Result := TextBetweenPoints[StartXY, EndXY];
+
+    if (Pos('.', Result) > 0) then
+      StartXY := Scan(EndXY, @__GetExpressionEx);
+  end;
 end;
 
 function TLapeTools_Editor.GetExpression: String;

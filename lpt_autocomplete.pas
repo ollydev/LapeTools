@@ -704,11 +704,11 @@ procedure TLapeTools_AutoComplete.Fill;
                FTree.AddField(Fields.Get(i) as TDeclaration_Variable);
 
         if (Name <> nil) then
-          for Method in FParser.Map.GetMethods(Name.Text) do
+          for Method in Self.FParser.Map.GetMethods(Name.Text) do
             FTree.Add(Method);
 
         if (not isParent) then
-          for Parent in Parents() do
+          for Parent in Parents(Self.FParser) do
             addMembers(Parent, True);
       end;
   end;
@@ -823,7 +823,7 @@ begin
 
     lecCaretChange:
       begin
-        if (FEditor.CaretX < FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) and (FEditor.CaretChar in [#0, #32, '.']) then
+        if (FEditor.CaretX <= FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) and (FEditor.CaretChar in [#0, #32, '.']) then
         begin
           if FPopup.Visible then
             FPopup.Visible := False;

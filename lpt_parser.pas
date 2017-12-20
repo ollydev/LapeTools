@@ -134,7 +134,7 @@ type
   public
     Name: TDeclaration_Identifier;
 
-    function Parents: TDeclaration_Types; virtual;
+    function Parents(Parser: TLapeTools_Parser): TDeclaration_Types;
 
     class function Identify(Parser: TLapeTools_Parser; VarType: Boolean): TDeclaration_Type_Identity;
 
@@ -151,8 +151,6 @@ type
     Parent: TDeclaration_Type_Identifier;
     Fields: TDeclarationMap;
 
-    function Parents: TDeclaration_Types; override;
-
     constructor Create(Parser: TLapeTools_Parser); override;
     destructor Destroy; override;
   end;
@@ -160,8 +158,6 @@ type
   TDeclaration_Type_Alias = class(TDeclaration_Type)
   public
     AliasType: TDeclaration_Type_Identifier;
-
-    function Parents: TDeclaration_Types; override;
 
     constructor Create(Parser: TLapeTools_Parser); override;
   end;
@@ -212,8 +208,6 @@ type
   TDeclaration_Type_Copy = class(TDeclaration_Type)
   public
     CopyType: TDeclaration_Type_Identifier;
-
-    function Parents: TDeclaration_Types; override;
 
     constructor Create(Parser: TLapeTools_Parser); override;
   end;
@@ -711,7 +705,7 @@ var
         Result := SearchMethods(Declaration);
 
       if (Result = nil) and (not isParent) then
-        for Parent in Declaration.Parents() do
+        for Parent in Declaration.Parents(Self) do
           begin
             Result := SearchType(Parent, Name, True);
             if (Result <> nil) then
@@ -895,29 +889,6 @@ begin
   end;
 end;
 
-function TDeclaration_Type_Copy.Parents: TDeclaration_Types;
-var
-  Declaration: TDeclaration_Type_Copy;
-begin
-  SetLength(Result, 0);
-
-  if (CopyType <> nil) then
-  begin
-    Declaration := FParser.Map.GetCopy(CopyType.Text);
-
-    while (Declaration <> nil)  do
-    begin
-      SetLength(Result, Length(Result) + 1);
-      Result[High(Result)] := Declaration;
-
-      if (Declaration.CopyType <> niL) then
-        Declaration := FParser.Map.GetCopy(Declaration.CopyType.Text)
-      else
-        Declaration := nil;
-    end;
-  end;
-end;
-
 constructor TDeclaration_Type_Copy.Create(Parser: TLapeTools_Parser);
 begin
   inherited Create(Parser);
@@ -1040,29 +1011,6 @@ begin
   end;
 end;
 
-function TDeclaration_Type_Alias.Parents: TDeclaration_Types;
-var
-  Declaration: TDeclaration_Type_Alias;
-begin
-  SetLength(Result, 0);
-
-  if (AliasType <> nil) then
-  begin
-    Declaration := FParser.Map.GetAlias(AliasType.Text);
-
-    while (Declaration <> nil) do
-    begin
-      SetLength(Result, Length(Result) + 1);
-      Result[High(Result)] := Declaration;
-
-      if (Declaration.AliasType <> niL) then
-        Declaration := FParser.Map.GetAlias(Declaration.AliasType.Text)
-      else
-        Declaration := nil;
-    end;
-  end;
-end;
-
 constructor TDeclaration_Type_Alias.Create(Parser: TLapeTools_Parser);
 const
   tk_kw_Native = 'NATIVE';
@@ -1170,9 +1118,39 @@ begin
     Result := inherited getDocPos();
 end;
 
-function TDeclaration_Type.Parents: TDeclaration_Types;
+function TDeclaration_Type.Parents(Parser: TLapeTools_Parser): TDeclaration_Types;
+
+  function GetParent(Declaration: TDeclaration_Type): TDeclaration_Type;
+  begin
+    Result := nil;
+
+    if Declaration is TDeclaration_Type_Copy then
+      Result := TDeclaration_Type_Copy(Declaration).CopyType
+    else
+    if Declaration is TDeclaration_Type_Alias then
+      Result := TDeclaration_Type_Alias(Declaration).AliasType
+    else
+    if Declaration is TDeclaration_Type_Record then
+      Result := TDeclaration_Type_Record(Declaration).Parent;
+
+    if (Result <> nil) then
+      Result := Parser.Map.GetType(Result.Text);
+  end;
+
+var
+  Declaration: TDeclaration_Type;
 begin
   SetLength(Result, 0);
+
+  Declaration := GetParent(Self);
+
+  while (Declaration <> nil) and (Declaration <> Self) do
+  begin
+    SetLength(Result, Length(Result) + 1);
+    Result[High(Result)] := Declaration;
+
+    Declaration := GetParent(Declaration);
+  end;
 end;
 
 class function TDeclaration_Type.Identify(Parser: TLapeTools_Parser; VarType: Boolean): TDeclaration_Type_Identity;
@@ -1217,29 +1195,6 @@ begin
     FText := TokString;
 
     Next();
-  end;
-end;
-
-function TDeclaration_Type_Record.Parents: TDeclaration_Types;
-var
-  Declaration: TDeclaration_Type_Record;
-begin
-  SetLength(Result, 0);
-
-  if (Parent <> nil) then
-  begin
-    Declaration := FParser.Map.GetRecord(Parent.Text);
-
-    while (Declaration <> nil) do
-    begin
-      SetLength(Result, Length(Result) + 1);
-      Result[High(Result)] := Declaration;
-
-      if (Declaration.Parent <> niL) then
-        Declaration := FParser.Map.GetRecord(Declaration.Parent.Text)
-      else
-        Declaration := nil;
-    end;
   end;
 end;
 

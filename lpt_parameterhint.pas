@@ -86,10 +86,11 @@ function TLapeTools_ParameterHint_Method.Draw(Canvas: TCanvas; X, Y, Current: In
   end;
 
 var
-  i, j, h: Int32;
+  i, j, h, c: Int32;
   Bold: Boolean;
 begin
   Result := X;
+  c := 0;
 
   DrawText(FName);
   DrawText('(');
@@ -97,7 +98,11 @@ begin
   for i := 0 to High(FParameters) do
   begin
     h := High(FParameters[i]);
-    Bold := (Current >= i) and (Current <= i + h);
+    Bold := False;
+
+    for j := 0 to h do
+      if (c + j) = Current then
+        Bold := True;
 
     case FParameters[i][0].Modifier of
       pmConst: DrawText('const ', Bold);
@@ -108,13 +113,15 @@ begin
 
     for j := 0 to h do
     begin
-      if (i + j = Current) then
+      if (c = Current) then
         DrawText(FParameters[i][j].Name.Text, True)
       else
         DrawText(FParameters[i][j].Name.Text);
 
       if (j < h) then
         DrawText(', ');
+
+      Inc(c);
     end;
 
     if (FParameters[i][0].VarType <> nil) then
