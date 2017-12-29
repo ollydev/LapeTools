@@ -267,7 +267,6 @@ procedure TLapeTools_ParameterHint.DoCommandProcessor(var Command: TSynEditorCom
 
     FParser := FEditor.GetParser(True);
     FStartPos := FEditor.GetParameterStart();
-    FStartPos.X := FStartPos.X - 1;
     FEndPos := FStartPos;
     FExpression := FEditor.GetExpression(FStartPos, FEndPos);
 
@@ -324,9 +323,17 @@ begin
 end;
 
 procedure TLapeTools_ParameterHint.Execute(X, Y: Int32);
+
+  procedure AddMethod(Map: TDeclarationMap; Method: TDeclaration_Method);
+  begin
+    if Method.Header.MethodType in [mtProcedureOfObject, mtFunctionOfObject] then
+      FForm.Add(Map.GetMethods(Method.Header.ObjectName.Text + '.' + Method.Header.Name.Text))
+    else
+      FForm.Add(Map.GetMethods(Method.Header.Name.Text));
+  end;
+
 var
   Declaration: TDeclaration;
-  Method: TDeclaration_Method;
 begin
   if (not FForm.Font.IsEqual(FEditor.Font)) then
     FForm.Font := FEditor.Font;
@@ -337,16 +344,17 @@ begin
   else
     Declaration := FParser.Find(FExpression);
 
+  if (Declaration <> nil) and (Declaration is TDeclaration_Variable) then
+    Declaration := FParser.GetType(TDeclaration_Variable(Declaration).VarType);
+
   if (Declaration <> nil) then
   begin
     if (Declaration is TDeclaration_Method) then
     begin
-      Method := Declaration as TDeclaration_Method;
+      if (FParser.InMethod <> nil) then
+        AddMethod(FParser.InMethod.Locals, Declaration as TDeclaration_Method);
 
-      if Method.Header.MethodType in [mtProcedureOfObject, mtFunctionOfObject] then
-        FForm.Add(FParser.Map.GetMethods(Method.Header.ObjectName.Text + '.' + Method.Header.Name.Text))
-      else
-        FForm.Add(FParser.Map.GetMethods(Method.Header.Name.Text))
+      AddMethod(FParser.Map,Declaration as TDeclaration_Method);
     end else
     if (Declaration is TDeclaration_Type_Method) then
       FForm.Add(TDeclaration_Type_Method(Declaration).Header)

@@ -832,6 +832,14 @@ begin
             FForm.Visible := False;
         end;
       end;
+
+    lecEscape:
+      begin
+        if FPopup.Visible then
+          FPopup.Visible := False;
+        if FForm.Visible then
+          FForm.Visible := False;
+      end;
   end;
 end;
 

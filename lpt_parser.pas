@@ -59,6 +59,8 @@ type
     property Settings: ELapeTools_ParserSettings read FSettings write FSettings;
     property BaseDefines: TStringList read FBaseDefines;
 
+    function GetType(Declaration: TDeclaration): TDeclaration_Type;
+
     function FindFile(AFilePath: lpString): lpString;
     function Find(Name: lpString): TDeclaration;
 
@@ -405,6 +407,43 @@ begin
   Exit(True);
 end;
 
+function TLapeTools_Parser.GetType(Declaration: TDeclaration): TDeclaration_Type;
+begin
+  Result := nil;
+
+  if (Declaration is TDeclaration_Type_Identifier) then
+  begin
+    if (FInMethod <> nil) and (FInMethod.Locals.GetType(Declaration.Text) <> nil) then
+      Declaration := FInMethod.Locals.GetType(Declaration.Text)
+    else
+      Declaration := FMap.GetType(Declaration.Text);
+  end;
+
+  if (Declaration is TDeclaration_Variable) then
+    with Declaration as TDeclaration_Variable do
+    begin
+      if (VarType <> nil) then
+        Result := GetType(VarType);
+    end
+    else
+    if (Declaration is TDeclaration_Method) then
+      with Declaration as TDeclaration_Method do
+      begin
+        if (Header.Result <> nil) then
+          Result := GetType(Header.Result);
+      end
+    else
+    if (Declaration is TDeclaration_Type_Method) then
+      with Declaration as TDeclaration_Type_Method do
+      begin
+        if (Header.Result <> nil) then
+          Result := GetType(Header.Result);
+      end;
+
+   if (Result = nil) and (Declaration is TDeclaration_Type) then
+      Result := Declaration as TDeclaration_Type;
+end;
+
 function TLapeTools_Parser.Doc: lpString;
 begin
   Result := TLapeTokenizerString(Tokenizer).Doc;
@@ -608,39 +647,7 @@ var
       SetLength(Result, Length(Result) - 1);
   end;
 
-  function GetType(Declaration: TDeclaration): TDeclaration_Type; overload;
-  begin
-    Result := nil;
-
-    if (Declaration is TDeclaration_Type_Identifier) then
-      Declaration := FMap.GetType(Declaration.Text);
-
-    if (Declaration is TDeclaration_Variable) then
-      with Declaration as TDeclaration_Variable do
-      begin
-        if (VarType <> nil) then
-          Result := GetType(VarType);
-      end
-    else
-    if (Declaration is TDeclaration_Method) then
-      with Declaration as TDeclaration_Method do
-      begin
-        if (Header.Result <> nil) then
-          Result := GetType(Header.Result);
-      end
-    else
-    if (Declaration is TDeclaration_Type_Method) then
-      with Declaration as TDeclaration_Type_Method do
-      begin
-        if (Header.Result <> nil) then
-          Result := GetType(Header.Result);
-      end;
-
-    if (Result = nil) and (Declaration is TDeclaration_Type) then
-      Result := Declaration as TDeclaration_Type;
-  end;
-
-  function GetType(Name: lpString): TDeclaration_Type; overload;
+  function GetStartingType(Name: lpString): TDeclaration_Type;
   begin
     Result := GetType(Find(Name));
   end;
@@ -726,7 +733,7 @@ begin
     begin
       if (Item = 0) then
       begin
-        Result := GetType(Items[Item].Name);
+        Result := GetStartingType(Items[Item].Name);
         if (Result <> nil) and (Items[Item].Dimensions > 0) then
           Result := GetArray(Result, Items[Item].Dimensions);
       end else
