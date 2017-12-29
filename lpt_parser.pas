@@ -1634,21 +1634,21 @@ begin
       if (not (Tok() in [tk_kw_Procedure, tk_kw_Function])) then
         Expect(tk_kw_End, False, True);
     finally
-      if (Result.Header.Name <> nil) then
-      begin
-       if (Result.Header.MethodType in [mtProcedureOfObject, mtFunctionOfObject]) then
-        begin
-          Add(Result.Header.ObjectName.Text + '.' + Result.Header.Name.Text, Result);
-
-          if (psAddMethodUnderType in FSettings) then
-            Add(Result.Header.ObjectName.Text, Result);
-        end else
-          Add(Result.Header.Name.Text, Result);
-      end;
-
       if (FInMethod = nil) and (Caret.Reached) and (Caret.Pos > StartPos) then
         FInMethod := Result;
     end;
+
+  if (not (mdForward in Result.Header.Directives)) and (Result.Header.Name <> nil) then
+  begin
+   if (Result.Header.MethodType in [mtProcedureOfObject, mtFunctionOfObject]) then
+    begin
+      Add(Result.Header.ObjectName.Text + '.' + Result.Header.Name.Text, Result);
+
+      if (psAddMethodUnderType in Parser.Settings) then
+        Add(Result.Header.ObjectName.Text, Result);
+    end else
+      Add(Result.Header.Name.Text, Result);
+  end;
 end;
 
 function TDeclarationMap_Helper.GetMethods(Name: lpString): TDeclaration_Methods;
