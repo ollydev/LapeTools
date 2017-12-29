@@ -542,7 +542,41 @@ end;
 
 function TLapeTools_Parser.Find(Name: lpString): TDeclaration;
 
-  function FindInMethod(Name: lpString; Method: TDeclaration_Method): TDeclaration;
+  function FindInMethods(Methods: TDeclaration_Methods): TDeclaration;
+  var
+    i: Int32;
+  begin
+    for i := 0 to High(Methods) do
+      if UpperCase(Name) = UpperCase(Methods[i].Header.Name.Text) then
+        Exit(Methods[i]);
+
+    Exit(nil);
+  end;
+
+  function FindInType(Declaration: TDeclaration; isParent: Boolean = False): TDeclaration;
+  var
+    i: Int32;
+    Parent: TDeclaration_Type;
+  begin
+    if (Declaration <> nil) and (Declaration is TDeclaration_Type) then
+    begin
+      if Declaration is TDeclaration_Type_Record then
+        Result := TDeclaration_Type_Record(Declaration).Fields[Name];
+
+      if (Result = nil) and (TDeclaration_Type(Declaration).Name <> nil) then
+        Result := FindInMethods(FMap.GetMethods(TDeclaration_Type(Declaration).Name.Text));
+
+      if (Result = nil) then
+        for Parent in TDeclaration_Type(Declaration).Parents(Self) do
+        begin
+          Result := FindInType(Parent, True);
+          if (Result <> nil) then
+            Exit;
+        end;
+      end;
+  end;
+
+  function FindInMethod(Method: TDeclaration_Method): TDeclaration;
   begin
     if (UpperCase(Name) = 'RESULT') and (Method.Header.MethodType in [mtFunction, mtFunctionOfObject]) then
       Result := Method.Header.Result
@@ -556,11 +590,14 @@ function TLapeTools_Parser.Find(Name: lpString): TDeclaration;
         Result := Method.Header.Parameters[Name];
     end;
 
+    if (Result = nil) and (Method.Header.MethodType in [mtFunctionOfObject, mtProcedureOfObject]) then
+      Result := FindInType(FMap.GetType(Method.Header.ObjectName.Text));
+
     if (Result = nil) and (Method.Parent <> nil) and (not (mdStatic in Method.Header.Directives)) then
-      Result := FindInMethod(Name, Method.Parent);
+      Result := FindInMethod(Method.Parent);
   end;
 
-  function FindEnum(Name: lpString): TDeclaration;
+  function FindEnum: TDeclaration;
   var
     i: Int32;
     Enum: TDeclaration_Type_Enum;
@@ -582,11 +619,11 @@ begin
   Result := nil;
 
   if (FInMethod <> nil) then
-    Result := FindInMethod(Name, FInMethod);
+    Result := FindInMethod(FInMethod);
   if (Result = nil) then
     Result := FMap[Name];
   if (Result = nil) then
-    Result := FindEnum(Name);
+    Result := FindEnum();
 end;
 
 function TLapeTools_Parser.ParseExpression(Expression: lpString; ReturnType: Boolean): TDeclaration;
