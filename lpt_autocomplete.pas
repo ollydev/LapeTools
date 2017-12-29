@@ -805,6 +805,7 @@ begin
         FStartPos := FEditor.CaretXY;
         FEndPos := FEditor.CaretXY;
         FExpression := FEditor.GetExpression(FStartPos, FEndPos);
+        FEndPos := FStartPos;
 
         Fill();
         Filter();
@@ -823,7 +824,7 @@ begin
 
     lecCaretChange:
       begin
-        if (FEditor.CaretX <= FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) and (FEditor.CaretChar in [#0, #32, '.']) then
+        if (FEditor.CaretX <= FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) then
         begin
           if FPopup.Visible then
             FPopup.Visible := False;
@@ -835,9 +836,17 @@ begin
 end;
 
 procedure TLapeTools_AutoComplete.Insert(Sender: TObject);
+var
+  StartXY, EndXY: TPoint;
 begin
   if (FTree.Selected <> nil) then
-    FEditor.TextBetweenPointsEx[FStartPos, Point(Max(FEndPos.X, FEditor.CaretX), FEndPos.Y), scamEnd] := FTree.Selected.Text;
+  begin
+    StartXY := FEditor.CaretXY;
+    EndXY := FEditor.CaretXY;
+
+    FEditor.GetExpression(StartXY, EndXY);
+    FEditor.TextBetweenPointsEx[FStartPos, EndXY, scamEnd] := FTree.Selected.Text;
+  end;
 
   FForm.Hide();
 end;

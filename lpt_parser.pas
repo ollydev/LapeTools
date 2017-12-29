@@ -57,6 +57,7 @@ type
     property Paths: TStringList read FPaths;
     property Includes: TStringList read FIncludes;
     property Settings: ELapeTools_ParserSettings read FSettings write FSettings;
+    property BaseDefines: TStringList read FBaseDefines;
 
     function FindFile(AFilePath: lpString): lpString;
     function Find(Name: lpString): TDeclaration;

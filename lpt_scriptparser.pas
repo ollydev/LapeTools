@@ -13,6 +13,7 @@ type
   public
     RefCount: Int32;
 
+    function EqualDefines(Parser: TLapeTools_Parser): Boolean;
     function Updated: Boolean;
   end;
 
@@ -48,6 +49,11 @@ uses
 var
   IncludeCache: TLapeTools_IncludeCache;
 
+function TLapeTools_CachedInclude.EqualDefines(Parser: TLapeTools_Parser): Boolean;
+begin
+  Result := FBaseDefines.Equals(Parser.BaseDefines) and FDefines.Equals(Parser.Defines);
+end;
+
 function TLapeTools_CachedInclude.Updated: Boolean;
 var
   i: Int32;
@@ -62,9 +68,10 @@ begin
   Exit(False);
 end;
 
-function TLapeTools_IncludeCache.Get(Sender: TLapeTools_Parser;FilePath: lpString): TLapeTools_CachedInclude;
+function TLapeTools_IncludeCache.Get(Sender: TLapeTools_Parser; FilePath: lpString): TLapeTools_CachedInclude;
 var
   i: Int32;
+  Defines: TStringList;
 begin
   for i := FIncludes.Count - 1 downto 0 do
     if (FIncludes[i].Updated) and (FIncludes[i].RefCount = 0) then
@@ -75,7 +82,7 @@ begin
     end;
 
   for i := FIncludes.Count - 1 downto 0 do
-    if (FIncludes[i].FilePath = FilePath) and (not FIncludes[i].Updated) then
+    if (FIncludes[i].FilePath = FilePath) and FIncludes[i].EqualDefines(Sender) and (not FIncludes[i].Updated) then
     begin
       Result := FIncludes[i];
       Result.RefCount := Result.RefCount + 1;
@@ -85,10 +92,23 @@ begin
 
   WriteLn('Caching include "', FilePath, '"');
 
+  Defines := TStringList.Create();
+  Defines.AddStrings(Sender.BaseDefines);
+  Defines.AddStrings(Sender.Defines);
+
   Result := TLapeTools_CachedInclude.Create(FilePath);
+  Result.BaseDefines.AddStrings(Sender.BaseDefines);
+  Result.Defines.AddStrings(Sender.Defines);
   Result.Paths.AddStrings(Sender.Paths);
   Result.Parse();
   Result.RefCount := Result.RefCount + 1;
+
+  // Restore starting defines
+  Result.Defines.Clear();
+  for i := 0 to Defines.Count - 1 do
+    Result.Defines.Add(Defines[i]);
+
+  Defines.Free();
 
   for i := 0 to Result.Includes.Count - 1 do
     Result.Includes.Objects[i] := TObject(FileAge(Result.Includes[i]));
@@ -113,6 +133,7 @@ function TLapeTools_ScriptParser.HandleDirective(Sender: TLapeTokenizerBase; Dir
 var
   Path: lpString;
   Declaration: TDeclaration_Include;
+  Include: TLapeTools_CachedInclude;
   i: Int32;
 begin
   if (not Sender.InPeek) and (not InIgnore()) and (FStack.Count = 0) then
@@ -131,9 +152,12 @@ begin
 
             if (psParseIncludes in FSettings) and (FIncludes.IndexOf(Path) = -1) then
             begin
-              FIncludes.Add(Path);
+              Include := FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))];
 
-              with FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))].Map.ExportToArrays() do
+              FIncludes.Add(Path);
+              FDefines.AddStrings(Include.Defines);
+
+              with Include.Map.ExportToArrays() do
                 for i := 0 to High(Keys) do
                   FMap.Add(Keys[i], Items[i]);
             end;
