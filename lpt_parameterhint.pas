@@ -344,7 +344,7 @@ begin
   else
     Declaration := FParser.Find(FExpression);
 
-  if (Declaration <> nil) and (Declaration is TDeclaration_Variable) then
+  if (Declaration <> nil) and (Declaration is TDeclaration_Variable) and (TDeclaration_Variable(Declaration).VarType <> nil) then
     Declaration := FParser.GetType(TDeclaration_Variable(Declaration).VarType);
 
   if (Declaration <> nil) then
@@ -354,7 +354,7 @@ begin
       if (FParser.InMethod <> nil) then
         AddMethod(FParser.InMethod.Locals, Declaration as TDeclaration_Method);
 
-      AddMethod(FParser.Map,Declaration as TDeclaration_Method);
+      AddMethod(FParser.Map, Declaration as TDeclaration_Method);
     end else
     if (Declaration is TDeclaration_Type_Method) then
       FForm.Add(TDeclaration_Type_Method(Declaration).Header)

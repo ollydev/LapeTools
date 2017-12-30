@@ -558,6 +558,8 @@ function TLapeTools_Parser.Find(Name: lpString): TDeclaration;
     i: Int32;
     Parent: TDeclaration_Type;
   begin
+    Result := nil;
+
     if (Declaration <> nil) and (Declaration is TDeclaration_Type) then
     begin
       if Declaration is TDeclaration_Type_Record then
@@ -578,6 +580,8 @@ function TLapeTools_Parser.Find(Name: lpString): TDeclaration;
 
   function FindInMethod(Method: TDeclaration_Method): TDeclaration;
   begin
+    Result := nil;
+
     if (UpperCase(Name) = 'RESULT') and (Method.Header.MethodType in [mtFunction, mtFunctionOfObject]) then
       Result := Method.Header.Result
     else
