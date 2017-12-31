@@ -28,8 +28,11 @@ type
   protected
     FMethods: TLapeTools_ParameterHint_Methods;
     FIndex: Int32;
+
+    function GetMethodCount: Int32;
   public
     property Index: Int32 read FIndex write FIndex;
+    property MethodCount: Int32 read GetMethodCount;
 
     procedure EraseBackground(DC: HDC); override;
     procedure Paint; override;
@@ -197,6 +200,11 @@ begin
     Add(Methods[i].Header);
 end;
 
+function TLapeTools_ParameterHint_Form.GetMethodCount: Int32;
+begin
+  Result := Length(FMethods);
+end;
+
 procedure TLapeTools_ParameterHint_Form.EraseBackground(DC: HDC);
 begin
   { nothing }
@@ -270,9 +278,8 @@ procedure TLapeTools_ParameterHint.DoCommandProcessor(var Command: TSynEditorCom
     FEndPos := FStartPos;
     FExpression := FEditor.GetExpression(FStartPos, FEndPos);
 
-    if (FExpression <> '') then
-      with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
-        Execute(X, Y);
+    with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
+      Execute(X, Y);
 
     Update();
   end;
@@ -360,9 +367,13 @@ begin
       FForm.Add(TDeclaration_Type_Method(Declaration).Header)
   end;
 
-  FForm.Left := X;
-  FForm.Top := Y;
-  FForm.Show();
+  if (FForm.MethodCount > 0) then
+  begin
+    FForm.Left := X;
+    FForm.Top := Y;
+    FForm.Show();
+  end else
+    FForm.Hide();
 
   if FEditor.CanFocus() then
     FEditor.SetFocus();
