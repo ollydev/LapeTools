@@ -628,7 +628,7 @@ begin
       begin
         FEditor.CommandProcessor(ecChar, Key, nil);
 
-        if (not (Key in FEditor.IdentChars)) then
+        if (not (Key in FEditor.IdentChars + ['.'])) then
           FForm.Hide();
       end;
     #8:
@@ -816,29 +816,27 @@ begin
 
     lecFocus:
       begin
-        if FPopup.Visible then
-          FPopup.Visible := False;
-        if FForm.Visible then
-          FForm.Visible := False;
+        if FPopup.Showing then
+          FPopup.Hide();
+        if FForm.Showing then
+          FForm.Hide();
       end;
 
     lecCaretChange:
+      if (FEditor.CaretX <= FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) then
       begin
-        if (FEditor.CaretX <= FEndPos.X) and (FEditor.CaretY <= FEndPos.Y) then
-        begin
-          if FPopup.Visible then
-            FPopup.Visible := False;
-          if FForm.Visible then
-            FForm.Visible := False;
-        end;
+        if FPopup.Showing then
+          FPopup.Hide();
+        if FForm.Showing then
+          FForm.Hide();
       end;
 
     lecEscape:
       begin
-        if FPopup.Visible then
-          FPopup.Visible := False;
-        if FForm.Visible then
-          FForm.Visible := False;
+        if FPopup.Showing then
+          FPopup.Hide();
+        if FForm.Showing then
+          FForm.Hide();
       end;
   end;
 end;

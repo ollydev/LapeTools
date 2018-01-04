@@ -377,10 +377,14 @@ end;
 
 function __GetParameterStart(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 begin
+  PInt32(Data)^ := PInt32(Data)^ + 1;
+  if PInt32(Data)^ > 500 then // No need to search the entire script, a couple of lines is fine
+    Exit(False);
+
   case Char of
-    ')', ']':
+    ')':
       Inside := Inside + 1;
-    '(', '[':
+    '(':
       begin
         if (Inside = 0) then
           Exit(False);
@@ -393,18 +397,27 @@ begin
 end;
 
 function TLapeTools_Editor.GetParameterStart: TPoint;
+var
+  i: Int32 = 0;
 begin
-  Result := Scan(CaretXY, @__GetParameterStart);
+  Result := Scan(CaretXY, @__GetParameterStart, @i);
   Result.X := Result.X - 1;
 end;
 
 function __GetParameterIndex(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 begin
   case Char of
-    ')', ']':
+    ')':
       Inside := Inside + 1;
-    '(', '[':
+    '(':
       Inside := Inside - 1;
+    ']':
+      Inside := Inside + 1;
+    '[':
+      if (Inside = 0) then
+        PInt32(Data)^ := 0
+      else
+        Inside := Inside - 1;
     ',':
       if (Inside = 0) then
         PInt32(Data)^ := PInt32(Data)^ + 1;

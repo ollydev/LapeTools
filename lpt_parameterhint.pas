@@ -295,16 +295,19 @@ begin
       Hide();
 
     lecCaretChange:
-      if Changed() then
-        Show()
-      else
-        Update();
+      if FForm.Showing then
+      begin
+        if Changed() then
+          Show()
+        else
+          Update();
+      end;
 
     lecParameterHint:
       Show();
 
     lecFocusLost:
-      if (GetParentForm(FEditor).ActiveControl <> FEditor) then
+      if FForm.Showing and (GetParentForm(FEditor).ActiveControl <> FEditor) then
         Hide();
 
     lecScroll:
