@@ -1,9 +1,9 @@
-{$i imports.simba}
+{$DEFINE WINDOWS}
+
+{$DEFINE RSCLIENT}
+{$DEFINE RSCLIENT_AUTOFOCUS}
+
 {$i srl/osr.simba}
 
-(** @desc: Test function with a untyped parameter.
- **)
-procedure test(constref x);
 begin
-  srl.FindColors();
-end;
+end.

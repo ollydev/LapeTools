@@ -17,9 +17,6 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <VersionInfo>
-      <StringTable ProductVersion=""/>
-    </VersionInfo>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
     </BuildModes>
@@ -102,22 +99,11 @@
       <OtherUnitFiles Value="..;..\lape"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
-    <Parsing>
-      <SyntaxOptions>
-        <IncludeAssertionCode Value="True"/>
-      </SyntaxOptions>
-    </Parsing>
     <CodeGeneration>
       <Checks>
         <RangeChecks Value="True"/>
       </Checks>
-      <TargetCPU Value="i386"/>
     </CodeGeneration>
-    <Linking>
-      <Debugging>
-        <UseHeaptrc Value="True"/>
-      </Debugging>
-    </Linking>
     <Other>
       <CompilerMessages>
         <IgnoredMessages idx5024="True" idx3057="True"/>

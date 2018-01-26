@@ -79,8 +79,8 @@ type
     function HasDeclaration(Name: lpString; LocalOnly: Boolean = False; CheckWith: Boolean = True): Boolean; overload; override;
 
     constructor Create(ATokenizer: TLapeTokenizerBase; ManageTokenizer: Boolean = True; AEmitter: TLapeCodeEmitter = nil; ManageEmitter: Boolean = True); reintroduce; override;
-    constructor Create(ADoc: lpString; AFilePath: lpString; ACaret: Int32); overload;
-    constructor Create(AFilePath: lpString); overload;
+    constructor Create(ADoc: lpString; AFilePath: lpString; ACaret: Int32); virtual; overload;
+    constructor Create(AFilePath: lpString); virtual; overload;
     destructor Destroy; override;
   end;
 

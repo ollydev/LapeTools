@@ -12,9 +12,14 @@ type
   TLapeTools_CachedInclude = class(TLapeTools_Parser)
   public
     RefCount: Int32;
+    InDefines: TStringList;
+    OutDefines: TStringList;
 
     function EqualDefines(Parser: TLapeTools_Parser): Boolean;
     function Updated: Boolean;
+
+    constructor Create(AFilePath: lpString); override;
+    destructor Destroy; override;
   end;
 
   TLapeTools_CachedIncludes = specialize TLapeList<TLapeTools_CachedInclude>;
@@ -51,7 +56,7 @@ var
 
 function TLapeTools_CachedInclude.EqualDefines(Parser: TLapeTools_Parser): Boolean;
 begin
-  Result := FBaseDefines.Equals(Parser.BaseDefines) and FDefines.Equals(Parser.Defines);
+  Result := InDefines.Equals(Parser.Defines);
 end;
 
 function TLapeTools_CachedInclude.Updated: Boolean;
@@ -68,10 +73,25 @@ begin
   Exit(False);
 end;
 
+constructor TLapeTools_CachedInclude.Create(AFilePath: lpString);
+begin
+  inherited Create(AFilePath);
+
+  InDefines := TStringList.Create();
+  OutDefines := TStringList.Create();
+end;
+
+destructor TLapeTools_CachedInclude.Destroy;
+begin
+  InDefines.Free();
+  OutDefines.Free();;
+
+  inherited Destroy();
+end;
+
 function TLapeTools_IncludeCache.Get(Sender: TLapeTools_Parser; FilePath: lpString): TLapeTools_CachedInclude;
 var
   i: Int32;
-  Defines: TStringList;
 begin
   for i := FIncludes.Count - 1 downto 0 do
     if (FIncludes[i].Updated) and (FIncludes[i].RefCount = 0) then
@@ -90,25 +110,16 @@ begin
       Exit;
     end;
 
-  WriteLn('Caching include "', FilePath, '"');
-
-  Defines := TStringList.Create();
-  Defines.AddStrings(Sender.BaseDefines);
-  Defines.AddStrings(Sender.Defines);
-
   Result := TLapeTools_CachedInclude.Create(FilePath);
-  Result.BaseDefines.AddStrings(Sender.BaseDefines);
+  Result.InDefines.AddStrings(Sender.Defines);
   Result.Defines.AddStrings(Sender.Defines);
   Result.Paths.AddStrings(Sender.Paths);
   Result.Parse();
   Result.RefCount := Result.RefCount + 1;
 
-  // Restore starting defines
-  Result.Defines.Clear();
-  for i := 0 to Defines.Count - 1 do
-    Result.Defines.Add(Defines[i]);
-
-  Defines.Free();
+  for i := 0 to Result.Defines.Count - 1 do
+    if (Result.InDefines.IndexOf(Result.Defines[i]) = -1) then
+      Result.OutDefines.Add(Result.Defines[i]);
 
   for i := 0 to Result.Includes.Count - 1 do
     Result.Includes.Objects[i] := TObject(FileAge(Result.Includes[i]));
@@ -155,7 +166,7 @@ begin
               Include := FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))];
 
               FIncludes.Add(Path);
-              FDefines.AddStrings(Include.Defines);
+              FDefines.AddStrings(Include.OutDefines);
 
               with Include.Map.ExportToArrays() do
                 for i := 0 to High(Keys) do
