@@ -341,8 +341,8 @@ begin
     Exit('');
 
   AFilePath := SetDirSeparators(AFilePath);
-  if (ExpandFileName(AFilePath) = AFilePath) then
-    Exit(AFilePath);
+  if FileExists(IncludeTrailingPathDelimiter(ExtractFileDir(AFilePath))) then
+    Exit(IncludeTrailingPathDelimiter(ExtractFileDir(AFilePath)));
 
   for i := FTokenizer downto 0 do
     if (FTokenizers[i] <> nil) then
@@ -375,7 +375,7 @@ var
   Path: lpString;
   Declaration: TDeclaration_Include;
 begin
-  if (not Sender.InPeek) and (not InIgnore()) then
+  if (not InIgnore()) then
     case LowerCase(Directive) of
       'i', 'include', 'include_once':
         begin
