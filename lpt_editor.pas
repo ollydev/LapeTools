@@ -378,7 +378,7 @@ end;
 function __GetParameterStart(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 begin
   PInt32(Data)^ := PInt32(Data)^ + 1;
-  if PInt32(Data)^ > 500 then // No need to search the entire script, a couple of lines is fine
+  if PInt32(Data)^ > 350 then // No need to search the entire script, a couple of lines is fine
     Exit(False);
 
   case Char of

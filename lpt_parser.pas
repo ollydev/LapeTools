@@ -322,6 +322,9 @@ type
 
 implementation
 
+uses
+  DynLibs, FileUtil;
+
 const
   ParserTokens_BlockEnd = [tk_kw_Operator, tk_kw_Procedure, tk_kw_Function, tk_kw_Var, tk_kw_Const, tk_kw_Type, tk_kw_Begin, tk_kw_Label, tk_NULL];
   ParserTokens_Types = [tk_op_Deref, tk_kw_Array, tk_kw_Record, tk_kw_Packed, tk_kw_Function, tk_kw_Procedure,
@@ -341,6 +344,11 @@ begin
     Exit('');
 
   AFilePath := SetDirSeparators(AFilePath);
+  if FileExists(AFilePath) then
+    Exit(AFilePath);
+
+  if FileExists(ExpandFileName(AFilePath)) then
+    Exit(ExpandFileName(AFilePath));
   if FileExists(IncludeTrailingPathDelimiter(ExtractFileDir(AFilePath))) then
     Exit(IncludeTrailingPathDelimiter(ExtractFileDir(AFilePath)));
 
@@ -359,10 +367,7 @@ begin
       Exit(SetDirSeparators(Dir + AFilePath));
    end;
 
-  if FileExists(string(AFilePath)) then
-    Result := AFilePath
-  else
-    Result := '';
+  Exit('');
 end;
 
 function TLapeTools_Parser.HasDeclaration(Name: lpString; LocalOnly: Boolean; CheckWith: Boolean): Boolean;
@@ -377,17 +382,31 @@ var
 begin
   if (not InIgnore()) then
     case LowerCase(Directive) of
-      'i', 'include', 'include_once':
+      'i', 'include', 'include_once', 'loadlib':
         begin
-          Path := FindFile(Argument);
+          if (Directive = 'loadlib') then // Callback maybe?
+          begin
+            Directive := 'include_once';
+
+            if (Pos('.' + SharedSuffix, Argument) = 0) then
+              Argument := Argument + '.' + SharedSuffix;
+            Path := FindFile(Argument);
+            if (Path = '') then
+              Path := FindFile(StringReplace(Argument, '.' + SharedSuffix, {$IFDEF CPU32}'32'{$ELSE}'64'{$ENDIF} + '.' + SharedSuffix, []));
+            Path := StringReplace(Path, '.' + SharedSuffix, '.inc', []);
+          end else
+            Path := FindFile(Argument);
 
           if FileExists(Path) then
           begin
-            Declaration := TDeclaration_Include.Create(Self, True);
-            Declaration.Text := ExtractFileName(Declaration.Text);
-            Declaration.Path := Path;
+            if (not Tokenizer.InPeek) then
+            begin
+              Declaration := TDeclaration_Include.Create(Self, True);
+              Declaration.Text := ExtractFileName(Declaration.Text);
+              Declaration.Path := Path;
 
-            FMap.Add(Declaration.Text, Declaration);
+              FMap.Add(Declaration.Text, Declaration);
+            end;
 
             Argument := Path;
           end;

@@ -49,7 +49,7 @@ type
 implementation
 
 uses
-  DateUtils;
+  DynLibs;
 
 var
   IncludeCache: TLapeTools_IncludeCache;
@@ -149,9 +149,20 @@ var
 begin
   if (not Sender.InPeek) and (not InIgnore()) and (FStack.Count = 0) then
     case LowerCase(Directive) of
-      'i', 'include', 'include_once':
+      'i', 'include', 'include_once', 'loadlib':
         begin
-          Path := FindFile(Argument);
+          if (Directive = 'loadlib') then // Callback maybe?
+          begin
+            Directive := 'include_once';
+
+            if (Pos('.' + SharedSuffix, Argument) = 0) then
+              Argument := Argument + '.' + SharedSuffix;
+            Path := FindFile(Argument);
+            if (Path = '') then
+              Path := FindFile(StringReplace(Argument, '.' + SharedSuffix, {$IFDEF CPU32}'32'{$ELSE}'64'{$ENDIF} + '.' + SharedSuffix, []));
+            Path := StringReplace(Path, '.' + SharedSuffix, '.inc', []);
+          end else
+            Path := FindFile(Argument);
 
           if FileExists(Path) then
           begin

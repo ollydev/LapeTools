@@ -66,6 +66,7 @@ begin
     Highlighter := Self.Highlighter;
     OnShowDeclaration := @ShowDeclaration;
     Paths.Add('Includes/');
+    Paths.Add('Plugins/');
     InternalIncludes.Add('imports/imports.simba');
     Load('default.simba');
   end;

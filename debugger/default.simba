@@ -1,9 +1,9 @@
 {$DEFINE WINDOWS}
-
 {$DEFINE RSCLIENT}
 {$DEFINE RSCLIENT_AUTOFOCUS}
 
 {$i srl/osr.simba}
+{$loadlib simpleocr32.dll}
 
 begin
 end.
