@@ -49,9 +49,10 @@ type
     FParser: TLapeTools_Parser;
     FEditor: TLapeTools_Editor;
     FForm: TLapeTools_ParameterHint_Form;
-    FStartPos: TPoint;
-    FEndPos: TPoint;
+    FStartXY: TPoint;
     FExpression: String;
+    FExpressionStartXY: TPoint;
+    FExpressionEndXY: TPoint;
 
     procedure DoApplicationLostFocus(Sender: TObject);
     procedure DoCommandProcessor(var Command: TSynEditorCommand; Char: TUTF8Char);
@@ -250,79 +251,67 @@ end;
 
 procedure TLapeTools_ParameterHint.DoCommandProcessor(var Command: TSynEditorCommand; Char: TUTF8Char);
 
-  function Changed: Boolean;
-  begin
-    Result := FForm.Visible and ((FEditor.GetParameterStart().X <> FEndPos.X) or (FEditor.GetParameterStart().Y <> FEndPos.Y));
-  end;
-
-  procedure Update;
-  begin
-    if FForm.Visible then
-    begin
-      FForm.Index := FEditor.GetParameterIndex(FEndPos);
-
-      if (FForm.Index >= 0) then
-        FForm.Paint()
-      else
-        FForm.Hide();
-    end;
-  end;
-
-  procedure Show;
+  procedure Show(XY: TPoint);
   begin
     if (FParser <> nil) then
       FParser.Free();
-
     FParser := FEditor.GetParser(True);
-    FStartPos := FEditor.GetParameterStart();
-    FEndPos := FStartPos;
-    FExpression := FEditor.GetExpression(FStartPos, FEndPos);
 
-    with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
+    FStartXY := XY;
+
+    FExpressionStartXY := FStartXY;
+    FExpressionEndXY := FStartXY;
+    FExpression := FEditor.GetExpression(FExpressionStartXY, FExpressionEndXY);
+
+    with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FExpressionStartXY)) do
       Execute(X, Y);
 
-    Update();
+    FForm.Index := FEditor.GetParameterIndex(FStartXY);
+    FForm.Paint();
   end;
 
-  procedure Hide;
+  procedure Update;
+  var
+    XY: TPoint;
   begin
-    FForm.Hide();
+    if FForm.Visible then
+    begin
+      if (not FEditor.GetParameterStart(XY)) then
+        FForm.Visible := False
+      else
+      if (XY.X <> FStartXY.X) or (XY.Y <> FStartXY.Y) then
+        Show(XY)
+      else
+      begin
+        FForm.Index := FEditor.GetParameterIndex(XY);
+        FForm.Paint();
+      end;
+    end;
   end;
 
+var
+  XY: TPoint;
 begin
   case Command of
     lecEscape:
-      Hide();
+      if FForm.Visible then
+        FForm.Visible := False;
 
     lecCaretChange:
-      if FForm.Showing then
-      begin
-        if Changed() then
-          Show()
-        else
-          Update();
-      end;
+      if FForm.Visible then
+        Update();
 
     lecParameterHint:
-      Show();
+      if FEditor.GetParameterStart(XY) then
+        Show(XY);
 
     lecFocusLost:
-      if FForm.Showing and (GetParentForm(FEditor).ActiveControl <> FEditor) then
-        Hide();
+      if FForm.Visible and (GetParentForm(FEditor).ActiveControl <> FEditor) then
+        FForm.Visible := False;
 
     lecScroll:
-      if FForm.Showing then
-      begin
-        if (FStartPos.Y >= FEditor.TopLine) and (FStartPos.Y < FEditor.TopLine + FEditor.LinesInWindow) then
-        begin
-          with FEditor.ClientToScreen(FEditor.RowColumnToPixels(FStartPos)) do
-          begin
-            FForm.Left := X - FForm.BorderWidth;
-            FForm.Top := Y - FForm.Height;
-          end;
-        end else
-          Hide();
-      end;
+      if FForm.Visible then
+        FForm.Visible := False;
   end;
 end;
 

@@ -28,6 +28,8 @@ type
     Len: Int32;
   end;
 
+  TLapeTools_LibraryDirective = function(Argument: String): String of object;
+
   ELapeTools_ParserSetting = (psParseIncludes, psAddMethodUnderType);
   ELapeTools_ParserSettings = set of ELapeTools_ParserSetting;
 
@@ -43,6 +45,7 @@ type
     FFilePath: lpString;
     FFileAge: Int32;
     FSettings: ELapeTools_ParserSettings;
+    FOnLibraryDirective: TLapeTools_LibraryDirective;
 
     function HandleDirective(Sender: TLapeTokenizerBase; Directive, Argument: lpString): Boolean; override;
   public
@@ -58,6 +61,7 @@ type
     property Includes: TStringList read FIncludes;
     property Settings: ELapeTools_ParserSettings read FSettings write FSettings;
     property BaseDefines: TStringList read FBaseDefines;
+    property OnLibraryDirective: TLapeTools_LibraryDirective read FOnLibraryDirective write FOnLibraryDirective;
 
     function GetType(Declaration: TDeclaration): TDeclaration_Type;
 
@@ -301,10 +305,8 @@ type
     procedure ParseLabels(Parser: TLapeTools_Parser);
     function ParseMethod(Parser: TLapeTools_Parser): TDeclaration_Method;
 
-    function GetMethods(Name: lpString): TDeclaration_Methods; inline;
-    function GetRecord(Name: lpString): TDeclaration_Type_Record; inline;
-    function GetAlias(Name: lpString): TDeclaration_Type_Alias; inline;
-    function GetCopy(Name: lpString): TDeclaration_Type_Copy; inline;
+    function GetMethods(Name: lpString): TDeclaration_Methods;
+    function GetRecord(Name: lpString): TDeclaration_Type_Record;
     function GetType(Name: lpString): TDeclaration_Type; inline;
     function Get(Index: Int32): TDeclaration; inline;
   end;
@@ -323,7 +325,7 @@ type
 implementation
 
 uses
-  DynLibs, FileUtil;
+  FileUtil;
 
 const
   ParserTokens_BlockEnd = [tk_kw_Operator, tk_kw_Procedure, tk_kw_Function, tk_kw_Var, tk_kw_Const, tk_kw_Type, tk_kw_Begin, tk_kw_Label, tk_NULL];
@@ -382,20 +384,9 @@ var
 begin
   if (not InIgnore()) then
     case LowerCase(Directive) of
-      'i', 'include', 'include_once', 'loadlib':
+      'i', 'include', 'include_once':
         begin
-          if (Directive = 'loadlib') then // Callback maybe?
-          begin
-            Directive := 'include_once';
-
-            if (Pos('.' + SharedSuffix, Argument) = 0) then
-              Argument := Argument + '.' + SharedSuffix;
-            Path := FindFile(Argument);
-            if (Path = '') then
-              Path := FindFile(StringReplace(Argument, '.' + SharedSuffix, {$IFDEF CPU32}'32'{$ELSE}'64'{$ENDIF} + '.' + SharedSuffix, []));
-            Path := StringReplace(Path, '.' + SharedSuffix, '.inc', []);
-          end else
-            Path := FindFile(Argument);
+          Path := FindFile(Argument);
 
           if FileExists(Path) then
           begin
@@ -413,6 +404,14 @@ begin
 
           if (not (psParseIncludes in FSettings)) then
             Exit(True);
+        end;
+
+      'loadlib':
+        if (not Tokenizer.InPeek) and (FOnLibraryDirective <> nil) then
+        begin
+          Path := FOnLibraryDirective(Argument);
+          if (Path <> '') then
+            pushTokenizer(TLapeTokenizerString.Create(Path, ExtractFileName(Argument)));
         end;
     end;
 
@@ -574,7 +573,6 @@ function TLapeTools_Parser.Find(Name: lpString): TDeclaration;
 
   function FindInType(Declaration: TDeclaration; isParent: Boolean = False): TDeclaration;
   var
-    i: Int32;
     Parent: TDeclaration_Type;
   begin
     Result := nil;
@@ -1759,34 +1757,6 @@ begin
   for i := 0 to High(Indices) do
     if (FItems[Indices[i]] is TDeclaration_Type_Record) then
       Exit(FItems[Indices[i]] as TDeclaration_Type_Record);
-
-  Exit(nil);
-end;
-
-function TDeclarationMap_Helper.GetAlias(Name: lpString): TDeclaration_Type_Alias;
-var
-  Indices: TIntegerArray;
-  i: Int32;
-begin
-  Indices := IndicesOfKey(Name);
-
-  for i := 0 to High(Indices) do
-    if (FItems[Indices[i]] is TDeclaration_Type_Alias) then
-      Exit(FItems[Indices[i]] as TDeclaration_Type_Alias);
-
-  Exit(nil);
-end;
-
-function TDeclarationMap_Helper.GetCopy(Name: lpString): TDeclaration_Type_Copy;
-var
-  Indices: TIntegerArray;
-  i: Int32;
-begin
-  Indices := IndicesOfKey(Name);
-
-  for i := 0 to High(Indices) do
-    if (FItems[Indices[i]] is TDeclaration_Type_Copy) then
-      Exit(FItems[Indices[i]] as TDeclaration_Type_Copy);
 
   Exit(nil);
 end;

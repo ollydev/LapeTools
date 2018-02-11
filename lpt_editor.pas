@@ -30,6 +30,7 @@ type
     FInternalIncludes: TStringList;
     FOnShowDeclaration: TLapeTools_ShowDeclaration;
     FCommandProcessors: TLapeTools_CommandProcessors;
+    FOnLibraryDirective: TLapeTools_LibraryDirective;
 
     function Scan(XY: TPoint; StopXY: TPoint; Callback: TLapeTools_ScanCallback; Data: Pointer = nil): TPoint; overload;
     function Scan(XY: TPoint; Callback: TLapeTools_ScanCallback; Data: Pointer = nil): TPoint; overload;
@@ -44,6 +45,7 @@ type
     procedure DoCaretChange(Sender: TObject);
   public
     property OnShowDeclaration: TLapeTools_ShowDeclaration read FOnShowDeclaration write FOnShowDeclaration;
+    property OnLibraryDirective: TLapeTools_LibraryDirective read FOnLibraryDirective write FOnLibraryDirective;
 
     property ChangeStamp: Int64 read GetChangeStamp;
     property FilePath: String read FFilePath write FFilePath;
@@ -69,7 +71,7 @@ type
     function GetParser(Parse: Boolean; AddInternalIncludes: Boolean = True): TLapeTools_ScriptParser;
     function GetExpression(var StartXY, EndXY: TPoint): String; overload;
     function GetExpression: String; overload;
-    function GetParameterStart: TPoint;
+    function GetParameterStart(out StartXY: TPoint): Boolean;
     function GetParameterIndex(StartXY: TPoint): Int32;
 
     constructor Create(AOwner: TComponent); override;
@@ -79,7 +81,7 @@ type
 implementation
 
 uses
-  SynGutter, SynGutterLineOverview, SynEditHighlighter, SynEditStrConst, SynEditMouseCmds;
+  Math, SynGutter, SynGutterLineOverview, SynEditHighlighter, SynEditStrConst, SynEditMouseCmds;
 
 procedure TLapeTools_Editor.WndProc(var Msg: TLMessage);
 var
@@ -296,6 +298,7 @@ var
   i: Int32;
 begin
   Result := TLapeTools_ScriptParser.Create(Script, FilePath, Caret);
+  Result.OnLibraryDirective := OnLibraryDirective;
   Result.Paths.AddStrings(FPaths);
 
   if AddInternalIncludes then
@@ -377,10 +380,6 @@ end;
 
 function __GetParameterStart(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 begin
-  PInt32(Data)^ := PInt32(Data)^ + 1;
-  if PInt32(Data)^ > 350 then // No need to search the entire script, a couple of lines is fine
-    Exit(False);
-
   case Char of
     ')':
       Inside := Inside + 1;
@@ -391,17 +390,23 @@ begin
 
         Inside := Inside - 1;
       end;
+    ';':
+      Exit(False);
   end;
 
   Exit(True);
 end;
 
-function TLapeTools_Editor.GetParameterStart: TPoint;
-var
-  i: Int32 = 0;
+function TLapeTools_Editor.GetParameterStart(out StartXY: TPoint): Boolean;
 begin
-  Result := Scan(CaretXY, @__GetParameterStart, @i);
-  Result.X := Result.X - 1;
+  StartXY := Scan(Point(CaretX - 1, CaretY), Point(0, Max(0, CaretY - 5)), @__GetParameterStart, nil);
+
+  if (TextBetweenPoints[StartXY, Point(StartXY.X - 1, StartXY.Y)] = '(') then
+  begin
+    StartXY.X := StartXY.X - 1;
+
+    Exit(True);
+  end;
 end;
 
 function __GetParameterIndex(Char: String; var Inside: Int32; Data: Pointer): Boolean;
@@ -426,34 +431,9 @@ begin
   Exit(True);
 end;
 
-function __GetParameterClose(Char: String; var Inside: Int32; Data: Pointer): Boolean;
-begin
-  case Char of
-    ')', ']':
-      PInt32(Data)^ := PInt32(Data)^ + 1;
-    '(', '[':
-      PInt32(Data)^ := PInt32(Data)^ - 1;
-  end;
-
-  Exit(True);
-end;
-
 function TLapeTools_Editor.GetParameterIndex(StartXY: TPoint): Int32;
-var
-  Close: Int32 = 0;
 begin
   Result := 0;
-
-  if (TextBetweenPoints[StartXY, Point(StartXY.X + 1, StartXY.Y)] <> '(') then
-    Exit(-1);
-
-  if (TextBetweenPoints[Point(CaretX - 1, CaretY), CaretXY] = ')') then
-  begin
-    Scan(CaretXY, @__GetParameterClose, @Close);
-
-    if (Close = 0) then
-      Exit(-1);
-  end;
 
   Scan(Point(CaretX - 1, CaretY), StartXY, @__GetParameterIndex, @Result);
 end;

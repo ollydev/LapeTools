@@ -104,6 +104,11 @@
         <RangeChecks Value="True"/>
       </Checks>
     </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <UseHeaptrc Value="True"/>
+      </Debugging>
+    </Linking>
     <Other>
       <CompilerMessages>
         <IgnoredMessages idx5024="True" idx3057="True"/>

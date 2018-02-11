@@ -3,7 +3,7 @@
 {$DEFINE RSCLIENT_AUTOFOCUS}
 
 {$i srl/osr.simba}
-{$loadlib simpleocr32.dll}
 
 begin
+  srl.FindColors(TPA, CTS2(), FreeBitmaps(
 end.
