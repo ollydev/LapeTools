@@ -407,7 +407,7 @@ begin
         end;
 
       'loadlib':
-        if (not Tokenizer.InPeek) and (FOnLibraryDirective <> nil) then
+        if (psParseIncludes in FSettings) and (not Tokenizer.InPeek) and (FOnLibraryDirective <> nil) then
         begin
           Path := FOnLibraryDirective(Argument);
           if (Path <> '') then

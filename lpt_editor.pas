@@ -130,8 +130,6 @@ var
   Inside: Int32 = 0;
 begin
   Line := Copy(Lines[XY.Y - 1], 1, XY.X);
-  if (XY.X > Length(Line) + 1) then
-    Exit(XY);
 
   while (XY.Y > 0) do
   begin
