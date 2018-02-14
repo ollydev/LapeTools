@@ -329,8 +329,7 @@ uses
 
 const
   ParserTokens_BlockEnd = [tk_kw_Operator, tk_kw_Procedure, tk_kw_Function, tk_kw_Var, tk_kw_Const, tk_kw_Type, tk_kw_Begin, tk_kw_Label, tk_NULL];
-  ParserTokens_Types = [tk_op_Deref, tk_kw_Array, tk_kw_Record, tk_kw_Packed, tk_kw_Function, tk_kw_Procedure,
-                        tk_kw_External, tk_kw_Private, tk_kw_Type, tk_kw_Set, tk_Identifier, tk_sym_ParenthesisOpen];
+  ParserTokens_Types = [tk_op_Deref, tk_kw_Array, tk_kw_Record, tk_kw_Packed, tk_kw_Function, tk_kw_Procedure, tk_kw_Private, tk_kw_Type, tk_kw_Set, tk_Identifier, tk_sym_ParenthesisOpen];
 
 function TDeclaration_Parameters.Get(Index: Int32): TDeclaration_Parameter;
 begin
@@ -998,6 +997,9 @@ constructor TDeclaration_Type_Method.Create(Parser: TLapeTools_Parser);
 begin
   inherited Create(Parser);
 
+  if (Parser.Tok() = tk_kw_Private) then
+    Parser.Expect([tk_kw_Function, tk_kw_Procedure], True, False);
+
   Header := TDeclaration_MethodHeader.Create(Parser);
 end;
 
@@ -1230,7 +1232,7 @@ begin
         Result := TDeclaration_Type_Enum;
       tk_kw_Set:
         Result := TDeclaration_Type_Set;
-      tk_kw_Procedure, tk_kw_Function:
+      tk_kw_Procedure, tk_kw_Function, tk_kw_Private:
         Result := TDeclaration_Type_Method;
       tk_kw_Array:
         Result := TDeclaration_Type_Array;
