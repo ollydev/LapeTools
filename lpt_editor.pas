@@ -323,7 +323,7 @@ end;
 
 function __GetExpression(Char: String; var Inside: Int32; Data: Pointer): Boolean;
 const
-  StringChars = ['_', '0'..'9', 'A'..'Z', 'a'..'z', '.', '(', '['];
+  StringChars = ['_', '0'..'9', 'A'..'Z', 'a'..'z', '.', '(', '[', '^'];
 begin
   if (Char = '') then
     Exit(False);

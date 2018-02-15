@@ -646,9 +646,18 @@ begin
     Result := FindEnum();
 end;
 
+// Pretty trash...
 function TLapeTools_Parser.ParseExpression(Expression: lpString; ReturnType: Boolean): TDeclaration;
 type
-  TExpressionItems = array of record Name: lpString; Dimensions: Int32; end;
+  TExpressionItems = array of record
+    Name: lpString;
+    Dimensions: Int32;
+    Ptr: record
+      Index: Boolean;
+      Normal: Boolean;
+    end;
+  end;
+
 var
   Items: TExpressionItems;
   Item: Int32;
@@ -689,6 +698,14 @@ var
           tk_sym_Dot:
             if (InParameters = 0) and (InBrackets = 0) then
               SetLength(Result, Length(Result) + 1);
+          tk_sym_Caret:
+            if (InBrackets = 0) then
+            begin
+              if (LastTok = tk_sym_BracketClose) then
+                Result[High(Result)].Ptr.Index := True
+              else
+                Result[High(Result)].Ptr.Normal := True;
+            end;
           else
             if (InParameters = 0) and (InBrackets = 0) and (not (Tok in TokJunk)) then
               Result[High(Result)].Name := Result[High(Result)].Name + TokString;
@@ -779,6 +796,14 @@ var
     end;
   end;
 
+  function GetPointerType(Declaration: TDeclaration): TDeclaration;
+  begin
+    if Declaration is TDeclaration_Type_Pointer then
+      Result := GetType(TDeclaration_Type_Pointer(Declaration).PointerType)
+    else
+      Result := nil;
+  end;
+
 begin
   Result := nil;
 
@@ -791,13 +816,21 @@ begin
       if (Item = 0) then
       begin
         Result := GetStartingType(Items[Item].Name);
+        if (Result <> nil) and Items[Item].Ptr.Normal then
+          Result := GetPointerType(Result);
         if (Result <> nil) and (Items[Item].Dimensions > 0) then
           Result := GetArray(Result, Items[Item].Dimensions);
+        if (Result <> nil) and Items[Item].Ptr.Index then
+          Result := GetPointerType(Result);
       end else
       begin
         Result := SearchType(Result as TDeclaration_Type, Items[Item].Name);
+        if (Result <> nil) and Items[Item].Ptr.Normal then
+          Result := GetPointerType(Result);
         if (Result <> nil) and (Items[Item].Dimensions > 0) then
           Result := GetArray(Result, Items[Item].Dimensions);
+        if (Result <> nil) and Items[Item].Ptr.Index then
+          Result := GetPointerType(Result);
       end;
 
       if (Result = nil) then
