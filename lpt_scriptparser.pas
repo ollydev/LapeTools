@@ -152,7 +152,7 @@ begin
         begin
           i := System.Pos(':=', Argument);
 
-          if (LowerCase(Trim(Copy(Argument, 1, i-1))) = 'mainfile') then
+          if (LowerCase(Trim(Copy(Argument, 1, i - 1))) = 'mainfile') then
           begin
             Path := FindFile(Trim(Copy(Argument, i + 2, Length(Argument) - i)));
 
@@ -160,7 +160,10 @@ begin
             begin
               Include := FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))];
               Path := ExpandFileName(Self.FilePath);
+
               with Include.Map.ExportToArrays() do
+              begin
+                // Add everything utill we reach the current file
                 for i := 0 to High(Keys) do
                 begin
                   if SameFileName(ExpandFileName(Items[i].DocPos.FileName), Path) then
@@ -168,6 +171,17 @@ begin
 
                   FMap.Add(Keys[i], Items[i]);
                 end;
+
+                // Skip current file
+                for i := i to High(Keys) do
+                  if (not SameFileName(ExpandFileName(Items[i].DocPos.FileName), Path)) then
+                    Break;
+
+                // Add all method of objects after current file
+                for i := i to High(Keys) do
+                  if (Items[i] is TDeclaration_Method) and (TDeclaration_Method(Items[i]).Header.MethodType in [mtFunctionOfObject, mtProcedureOfObject]) then
+                    FMap.Add(Keys[i], Items[i]);
+              end;
             end;
           end;
         end;
