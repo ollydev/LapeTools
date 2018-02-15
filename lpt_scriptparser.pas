@@ -159,10 +159,11 @@ begin
             if FileExists(Path) then
             begin
               Include := FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))];
+              Path := ExpandFileName(Self.FilePath);
               with Include.Map.ExportToArrays() do
                 for i := 0 to High(Keys) do
                 begin
-                  if (ExpandFileName(Items[i].DocPos.FileName) = Path) then
+                  if SameFileName(ExpandFileName(Items[i].DocPos.FileName), Path) then
                     Break;
 
                   FMap.Add(Keys[i], Items[i]);
