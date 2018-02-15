@@ -147,6 +147,30 @@ var
 begin
   if (not Sender.InPeek) and (not InIgnore()) and (FStack.Count = 0) then
     case LowerCase(Directive) of
+      'define':
+        if (psParseIncludes in FSettings) then
+        begin
+          i := System.Pos(':=', Argument);
+
+          if (LowerCase(Trim(Copy(Argument, 1, i-1))) = 'mainfile') then
+          begin
+            Path := FindFile(Trim(Copy(Argument, i + 2, Length(Argument) - i)));
+
+            if FileExists(Path) then
+            begin
+              Include := FCachedIncludes[FCachedIncludes.Add(IncludeCache.Get(Self, Path))];
+              with Include.Map.ExportToArrays() do
+                for i := 0 to High(Keys) do
+                begin
+                  if (ExpandFileName(Items[i].DocPos.FileName) = Path) then
+                    Break;
+
+                  FMap.Add(Keys[i], Items[i]);
+                end;
+            end;
+          end;
+        end;
+
       'i', 'include', 'include_once':
         begin
           Path := FindFile(Argument);
