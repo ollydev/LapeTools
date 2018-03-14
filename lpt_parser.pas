@@ -102,7 +102,7 @@ type
   public
     property Text: lpString read getText write FText;
     property DocPos: TDocPos read getDocPos write FDocPos;
-    property InScope: Boolean read FInScope;
+    property InScope: Boolean read FInScope write FInScope;
     property Tokens: Int32 read FTokens write FTokens;
 
     (* We parse everything on creation. If a exception is raised on creation the
