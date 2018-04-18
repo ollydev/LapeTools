@@ -27,7 +27,7 @@ type
   protected
     FFilePath: String;
     FPaths: TStringList;
-    FInternalIncludes: TStringList;
+    FImportsPath: String;
     FOnShowDeclaration: TLapeTools_ShowDeclaration;
     FCommandProcessors: TLapeTools_CommandProcessors;
     FOnLibraryDirective: TLapeTools_LibraryDirective;
@@ -50,7 +50,7 @@ type
     property ChangeStamp: Int64 read GetChangeStamp;
     property FilePath: String read FFilePath write FFilePath;
     property Paths: TStringList read FPaths;
-    property InternalIncludes: TStringList read FInternalIncludes;
+    property ImportsPath: String read FImportsPath write FImportsPath;
     property Script: String read GetScript;
     property Caret: Int32 read GetCaret;
     property CaretChar: Char read GetCaretChar;
@@ -68,7 +68,7 @@ type
     procedure Save;
     procedure SaveAs(AFilePath: String);
 
-    function GetParser(Parse: Boolean; AddInternalIncludes: Boolean = True): TLapeTools_ScriptParser;
+    function GetParser(Parse: Boolean; AddImports: Boolean = True): TLapeTools_ScriptParser;
     function GetExpression(var StartXY, EndXY: TPoint): String; overload;
     function GetExpression: String; overload;
     function GetParameterStart(out StartXY: TPoint): Boolean;
@@ -291,17 +291,23 @@ begin
   MarkTextAsSaved();
 end;
 
-function TLapeTools_Editor.GetParser(Parse: Boolean; AddInternalIncludes: Boolean): TLapeTools_ScriptParser;
+function TLapeTools_Editor.GetParser(Parse: Boolean; AddImports: Boolean): TLapeTools_ScriptParser;
 var
-  i: Int32;
+  Search: TSearchRec;
 begin
   Result := TLapeTools_ScriptParser.Create(Script, FilePath, Caret);
   Result.OnLibraryDirective := OnLibraryDirective;
   Result.Paths.AddStrings(FPaths);
 
-  if AddInternalIncludes then
-    for i := 0 to FInternalIncludes.Count - 1 do
-      Result.HandleDirective(Result.Tokenizer, 'include_once', FInternalIncludes[i]);
+  if AddImports then
+    if FindFirst(FImportsPath + '*.dump', faAnyFile, Search) = 0 then
+    begin
+      repeat
+        Result.HandleDirective(Result.Tokenizer, 'include_once', FImportsPath + Search.Name);
+      until FindNext(Search) <> 0;
+
+      FindClose(Search);
+    end;
 
   if Parse then
     Result.Parse();
@@ -480,13 +486,11 @@ begin
   end;
 
   FPaths := TStringList.Create();
-  FInternalIncludes := TStringList.Create();
 end;
 
 destructor TLapeTools_Editor.Destroy;
 begin
   FPaths.Free();
-  FInternalIncludes.Free();
 
   inherited Destroy();
 end;
