@@ -693,7 +693,7 @@ procedure TLapeTools_AutoComplete.Fill;
   var
     i: Int32;
     Method: TDeclaration_Method;
-    Parent: TDeclaration_Type;
+    ParentType: TDeclaration_Type;
   begin
     if (Declaration <> nil) and (Declaration is TDeclaration_Type) then
       with Declaration as TDeclaration_Type do
@@ -708,8 +708,8 @@ procedure TLapeTools_AutoComplete.Fill;
             FTree.Add(Method);
 
         if (not isParent) then
-          for Parent in Parents(Self.FParser) do
-            addMembers(Parent, True);
+          for ParentType in GetParents(Self.FParser) do
+            addMembers(ParentType, True);
       end;
   end;
 

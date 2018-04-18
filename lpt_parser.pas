@@ -11,6 +11,7 @@ uses
 type
   TDeclaration = class;
   TDeclaration_Type = class;
+  TDeclaration_Type_Identifier = class;
   TDeclaration_MethodHeader = class;
   TDeclaration_Method = class;
 
@@ -140,8 +141,10 @@ type
     function getDocPos: TDocPos; override;
   public
     Name: TDeclaration_Identifier;
+    Parent: TDeclaration_Type_Identifier;
 
-    function Parents(Parser: TLapeTools_Parser): TDeclaration_Types;
+    function HasParent: Boolean; virtual;
+    function GetParents(Parser: TLapeTools_Parser): TDeclaration_Types;
 
     class function Identify(Parser: TLapeTools_Parser; VarType: Boolean): TDeclaration_Type_Identity;
 
@@ -155,7 +158,6 @@ type
 
   TDeclaration_Type_Record = class(TDeclaration_Type)
   public
-    Parent: TDeclaration_Type_Identifier;
     Fields: TDeclarationMap;
 
     constructor Create(Parser: TLapeTools_Parser); override;
@@ -164,8 +166,6 @@ type
 
   TDeclaration_Type_Alias = class(TDeclaration_Type)
   public
-    AliasType: TDeclaration_Type_Identifier;
-
     constructor Create(Parser: TLapeTools_Parser); override;
   end;
 
@@ -214,8 +214,6 @@ type
 
   TDeclaration_Type_Copy = class(TDeclaration_Type)
   public
-    CopyType: TDeclaration_Type_Identifier;
-
     constructor Create(Parser: TLapeTools_Parser); override;
   end;
 
@@ -585,7 +583,7 @@ function TLapeTools_Parser.Find(Name: lpString): TDeclaration;
         Result := FindInMethods(FMap.GetMethods(TDeclaration_Type(Declaration).Name.Text));
 
       if (Result = nil) then
-        for Parent in TDeclaration_Type(Declaration).Parents(Self) do
+        for Parent in TDeclaration_Type(Declaration).GetParents(Self) do
         begin
           Result := FindInType(Parent, True);
           if (Result <> nil) then
@@ -787,7 +785,7 @@ var
         Result := SearchMethods(Declaration);
 
       if (Result = nil) and (not isParent) then
-        for Parent in Declaration.Parents(Self) do
+        for Parent in Declaration.GetParents(Self) do
           begin
             Result := SearchType(Parent, Name, True);
             if (Result <> nil) then
@@ -995,7 +993,7 @@ begin
   begin
     Expect(tk_Identifier, True, False);
 
-    CopyType := TDeclaration_Type_Identifier.Create(Parser);
+    Parent := TDeclaration_Type_Identifier.Create(Parser);
   end;
 end;
 
@@ -1130,13 +1128,13 @@ begin
 
       case Expect([tk_Identifier, tk_sym_ParenthesisOpen], True, False) of
         tk_Identifier:
-          AliasType := TDeclaration_Type_Identifier.Create(Parser);
+          Parent := TDeclaration_Type_Identifier.Create(Parser);
 
         tk_sym_ParenthesisOpen:
           begin
             Expect(tk_Identifier, True, False);
 
-            AliasType := TDeclaration_Type_Identifier.Create(Parser);
+            Parent := TDeclaration_Type_Identifier.Create(Parser);
 
             case Expect([tk_sym_ParenthesisClose, tk_sym_Comma], False, True) of
               tk_sym_Comma:
@@ -1145,7 +1143,7 @@ begin
           end;
       end;
    end else
-     AliasType := TDeclaration_Type_Identifier.Create(Parser);
+     Parent := TDeclaration_Type_Identifier.Create(Parser);
   end;
 end;
 
@@ -1219,23 +1217,23 @@ begin
     Result := inherited getDocPos();
 end;
 
-function TDeclaration_Type.Parents(Parser: TLapeTools_Parser): TDeclaration_Types;
+function TDeclaration_Type.HasParent: Boolean;
+begin
+  Result := (Parent <> nil) and (Name <> nil) and (LapeCase(Self.Name.Text) <> LapeCase(Self.Parent.Text));
+end;
 
-  function GetParent(Declaration: TDeclaration_Type): TDeclaration_Type;
+function TDeclaration_Type.GetParents(Parser: TLapeTools_Parser): TDeclaration_Types;
+
+  function GetParentType(Declaration: TDeclaration_Type): TDeclaration_Type;
   begin
     Result := nil;
 
-    if Declaration is TDeclaration_Type_Copy then
-      Result := TDeclaration_Type_Copy(Declaration).CopyType
-    else
-    if Declaration is TDeclaration_Type_Alias then
-      Result := TDeclaration_Type_Alias(Declaration).AliasType
-    else
-    if Declaration is TDeclaration_Type_Record then
-      Result := TDeclaration_Type_Record(Declaration).Parent;
-
-    if (Result <> nil) then
-      Result := Parser.Map.GetType(Result.Text);
+    if Declaration.HasParent then
+    begin
+      Result := Declaration.Parent;
+      if (Result <> nil) then
+        Result := Parser.Map.GetType(Result.Text);
+    end;
   end;
 
 var
@@ -1243,14 +1241,20 @@ var
 begin
   SetLength(Result, 0);
 
-  Declaration := GetParent(Self);
-
-  while (Declaration <> nil) and (Declaration <> Self) do
+  if HasParent then
   begin
-    SetLength(Result, Length(Result) + 1);
-    Result[High(Result)] := Declaration;
+    Declaration := GetParentType(Self);
 
-    Declaration := GetParent(Declaration);
+    while (Declaration <> nil) and (Declaration <> Self) do
+    begin
+      SetLength(Result, Length(Result) + 1);
+      Result[High(Result)] := Declaration;
+
+      if Declaration.HasParent then
+        Declaration := GetParentType(Declaration)
+      else
+        Declaration := nil;
+    end;
   end;
 end;
 
